@@ -425,15 +425,16 @@ class WordChainGame:
             first_char = self.get_first_char(word)
             if allowed_chars is not None and first_char not in allowed_chars:
                 continue
-            
+
             # 이음 수 확인
             max_euem = max(entry.get('이음 수', 0) for entry in entries)
-            
+
             # 난이도에 따른 필터링
-            min_threshold = 3000 - (self.bot_difficulty * 250)
+            # 높은 난이도일수록 매우 낮은 이음 수(0에 가까운 값)도 허용
+            min_threshold = max(0, 3200 - (self.bot_difficulty * 400))
             if max_euem < min_threshold:
                 continue
-            
+
             possible_words.append((word, max_euem))
         
         if not possible_words:
@@ -462,9 +463,24 @@ class WordChainGame:
             self.word_entry.config(state=tk.DISABLED)
             return
         
-        # 단어 선택 (이음 수가 높은 것 우선)
-        possible_words.sort(key=lambda x: x[1], reverse=True)
-        selected_word = possible_words[0][0]
+        # 단어 선택 - 난이도에 따라 이음 수 선호도 가중치 부여 후 랜덤 선택
+        min_euem = min(euem for _, euem in possible_words)
+        max_euem = max(euem for _, euem in possible_words)
+        difficulty_factor = self.bot_difficulty / 10.0
+
+        if max_euem == min_euem:
+            weights = [1.0 for _ in possible_words]
+        else:
+            weights = []
+            for _, euem in possible_words:
+                normalized = (euem - min_euem) / (max_euem - min_euem)
+                # 낮은 난이도에서는 높은 이음 수 선호, 높은 난이도에서는 낮은 이음 수 선호
+                high_pref = (1.0 - difficulty_factor) * normalized
+                low_pref = difficulty_factor * (1.0 - normalized)
+                weights.append(high_pref + low_pref + 0.05)  # 완전 0 회피용 보정
+
+        selected_word = random.choices([word for word, _ in possible_words],
+                                       weights=weights, k=1)[0]
         selected_first_char = self.get_first_char(selected_word)
         
         # 봇 단어 추가
