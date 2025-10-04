@@ -10,6 +10,7 @@ class WordChainGame:
         self.root.title("끝말잇기 게임")
         self.root.geometry("900x700")
         self.root.configure(bg="#f5f5f5")
+        self.try_maximize_window()
         
         # 게임 데이터
         self.words_data: Dict = {}
@@ -35,6 +36,22 @@ class WordChainGame:
         
         self.setup_ui()
         self.load_words()
+
+    def try_maximize_window(self):
+        """가능한 경우 창을 전체 화면 크기로 시작"""
+        try:
+            self.root.state('zoomed')
+        except tk.TclError:
+            try:
+                self.root.attributes('-zoomed', True)
+            except tk.TclError:
+                self.root.attributes('-fullscreen', True)
+                self.root.bind('<Escape>', self.exit_fullscreen)
+
+    def exit_fullscreen(self, _event=None):
+        """전체 화면 모드 해제"""
+        self.root.attributes('-fullscreen', False)
+        self.root.unbind('<Escape>')
         
     def setup_ui(self):
         # 스타일 설정
