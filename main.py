@@ -2,7 +2,63 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import json
 import random
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
+
+# -------------------------------------------------------------------------
+# 한글 유니코드 분해/합성 및 두음법칙 유틸리티
+# -------------------------------------------------------------------------
+HANGUL_BASE = 0xAC00
+CHOS = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+JUNGS = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ']
+JONGS = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+
+CHO_N = 2
+CHO_R = 5
+CHO_YIEUNG = 11
+
+# ㄴ/ㄹ이 단어 첫머리에 올 때 'ㅇ'으로 떨어지는 모음군(ㅣ계열·y계열·ㅖ·ㅒ·ㅟ·(보수적으로)ㅢ)
+IY_JUNG_IDX = {20, 2, 6, 12, 17, 7, 16, 3, 19}
+
+
+def is_hangul_syllable(ch: str) -> bool:
+    if not ch:
+        return False
+    o = ord(ch)
+    return 0xAC00 <= o <= 0xD7A3
+
+
+def decompose(ch: str) -> Optional[Tuple[int, int, int]]:
+    if not is_hangul_syllable(ch):
+        return None
+    code = ord(ch) - HANGUL_BASE
+    cho = code // 588
+    jung = (code % 588) // 28
+    jong = code % 28
+    return cho, jung, jong
+
+
+def compose(cho: int, jung: int, jong: int) -> str:
+    return chr(HANGUL_BASE + cho * 588 + jung * 28 + jong)
+
+
+def dueum_transform(syll: str) -> Optional[str]:
+    """두음법칙에 따른 음절 변환."""
+    decomp = decompose(syll)
+    if decomp is None:
+        return None
+
+    cho, jung, jong = decomp
+    if cho == CHO_N:
+        if jung in IY_JUNG_IDX:
+            return compose(CHO_YIEUNG, jung, jong)
+        return None
+
+    if cho == CHO_R:
+        if jung in IY_JUNG_IDX:
+            return compose(CHO_YIEUNG, jung, jong)
+        return compose(CHO_N, jung, jong)
+
+    return None
 
 class WordChainGame:
     def __init__(self, root):
@@ -18,21 +74,6 @@ class WordChainGame:
         self.game_history: List[Tuple[str, str]] = []  # (speaker, word)
         self.current_last_char: str = ""
         self.bot_difficulty: int = 5  # 1-10
-        
-        # 두음법칙 매핑
-        self.dueum_map = {
-            # ㄴ → 삭제 (ㅣ 또는 이중모음 ㅑ, ㅕ, ㅛ, ㅠ, ㅖ 등)
-            '녀': '여', '뇨': '요', '뉴': '유', '니': '이', '냐': '야', '네': '예',
-            # ㄹ → 삭제 (ㅣ 또는 ㅣ를 포함한 이중모음)
-            '려': '여', '료': '요', '류': '유', '례': '예', '리': '이', '랴': '야',
-            # ㄹ → ㄴ (단모음 또는 ㅏ, ㅗ, ㅜ, ㅡ, ㅐ, ㅔ, ㅚ)
-            '라': '나', '락': '낙', '란': '난', '람': '남', '랍': '납', '랑': '낭',
-            '래': '내', '랭': '냉', '량': '냥',
-            '로': '노', '록': '녹', '론': '논', '롱': '농',
-            '뢰': '뇌', '뇨': '요',
-            '루': '누', '룩': '눅', '룬': '눈', '룡': '농',
-            '르': '느', '륵': '늑', '른': '는', '릉': '능'
-        }
         
         self.word_tag_counter = 0
 
@@ -293,29 +334,32 @@ class WordChainGame:
         self.info_text.config(state=tk.DISABLED)
     
     def get_first_char(self, word):
-        """두음법칙 적용한 첫 글자"""
-        first = word[0]
-        return self.dueum_map.get(first, first)
-    
+        """단어의 첫 글자"""
+        return word[0] if word else ""
+
     def get_last_char(self, word):
         """마지막 글자"""
         return word[-1]
-    
+
+    def get_dueum_variants(self, syllable: str) -> Set[str]:
+        """두음법칙을 적용한 가능한 시작 음절 집합"""
+        if not syllable:
+            return set()
+
+        variants = {syllable}
+        transformed = dueum_transform(syllable)
+        if transformed:
+            variants.add(transformed)
+        return variants
+
     def apply_dueum_decrease(self, char):
-        """해당 글자로 끝나는 모든 단어의 이음 수 -1"""
-        # 두음법칙 역매핑: 표준형으로 끝나는 글자를 찾아서 원래 두음법칙 글자들도 포함
-        possible_chars = [char]
-        
-        # char로 변환되는 모든 두음법칙 글자 찾기
-        for dueum_char, standard_char in self.dueum_map.items():
-            if standard_char == char:
-                # 두음법칙 글자의 첫 음절만 추출 (예: '락'에서 '라')
-                if len(dueum_char) == 1:
-                    possible_chars.append(dueum_char)
-        
-        # 해당 글자들로 끝나는 모든 단어의 이음 수 감소
+        """해당 글자와 두음 변환 결과로 끝나는 모든 단어의 이음 수 -1"""
+        if not char:
+            return
+
         for word, entries in self.words_data.items():
-            if word[-1] in possible_chars:
+            last_char = self.get_last_char(word)
+            if char in self.get_dueum_variants(last_char):
                 for entry in entries:
                     if '이음 수' in entry:
                         entry['이음 수'] = max(0, entry['이음 수'] - 1)
@@ -332,16 +376,19 @@ class WordChainGame:
         if word not in self.words_data:
             messagebox.showwarning("경고", "사전에 없는 단어입니다.")
             return
-        
+
         if word in self.used_words:
             messagebox.showwarning("경고", "이미 사용된 단어입니다.")
             return
-        
+
+        first_char = self.get_first_char(word)
+
         # 첫 단어가 아니면 끝말잇기 규칙 검사
         if self.current_last_char:
-            first_char = self.get_first_char(word)
-            if first_char != self.current_last_char:
-                messagebox.showwarning("경고", 
+            allowed_chars = self.get_dueum_variants(self.current_last_char)
+            if first_char not in allowed_chars:
+                messagebox.showwarning(
+                    "경고",
                     f"'{self.current_last_char}'(으)로 시작하는 단어를 입력하세요.")
                 return
         
@@ -355,7 +402,7 @@ class WordChainGame:
         self.current_last_char = last_char
         
         # 이음 수 감소
-        self.apply_dueum_decrease(self.get_first_char(word))
+        self.apply_dueum_decrease(first_char)
         
         # 봇 차례
         self.status_label.config(text="봇이 생각 중...", fg="#e67e22")
@@ -367,12 +414,16 @@ class WordChainGame:
         # 사용 가능한 단어 찾기
         possible_words = []
         
+        allowed_chars = None
+        if self.current_last_char:
+            allowed_chars = self.get_dueum_variants(self.current_last_char)
+
         for word, entries in self.words_data.items():
             if word in self.used_words:
                 continue
-            
+
             first_char = self.get_first_char(word)
-            if first_char != self.current_last_char:
+            if allowed_chars is not None and first_char not in allowed_chars:
                 continue
             
             # 이음 수 확인
@@ -414,6 +465,7 @@ class WordChainGame:
         # 단어 선택 (이음 수가 높은 것 우선)
         possible_words.sort(key=lambda x: x[1], reverse=True)
         selected_word = possible_words[0][0]
+        selected_first_char = self.get_first_char(selected_word)
         
         # 봇 단어 추가
         self.used_words.add(selected_word)
@@ -425,7 +477,7 @@ class WordChainGame:
         self.current_last_char = last_char
         
         # 이음 수 감소
-        self.apply_dueum_decrease(self.get_first_char(selected_word))
+        self.apply_dueum_decrease(selected_first_char)
         
         # 사용자 차례
         self.status_label.config(text=f"'{last_char}'(으)로 시작하는 단어를 입력하세요", 
