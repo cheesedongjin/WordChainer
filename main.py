@@ -33,6 +33,8 @@ class WordChainGame:
             '르': '느', '륵': '늑', '른': '는', '릉': '능'
         }
         
+        self.word_tag_counter = 0
+
         self.setup_ui()
         self.load_words()
         
@@ -108,6 +110,10 @@ class WordChainGame:
         self.chat_text.tag_config("bot", foreground="#e74c3c", font=("맑은 고딕", 10, "bold"))
         self.chat_text.tag_config("system", foreground="#7f8c8d", font=("맑은 고딕", 9, "italic"))
         self.chat_text.tag_config("word_link", foreground="#4a90e2", underline=True)
+        self.chat_text.tag_bind("word_link", "<Enter>",
+                               lambda e: self.chat_text.config(cursor="hand2"))
+        self.chat_text.tag_bind("word_link", "<Leave>",
+                               lambda e: self.chat_text.config(cursor=""))
         
         # 입력 영역
         input_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
@@ -191,6 +197,7 @@ class WordChainGame:
         self.used_words.clear()
         self.game_history.clear()
         self.current_last_char = ""
+        self.word_tag_counter = 0
         
         self.chat_text.config(state=tk.NORMAL)
         self.chat_text.delete(1.0, tk.END)
@@ -227,17 +234,13 @@ class WordChainGame:
             self.chat_text.insert(tk.END, "봇: ", "bot")
         
         # 클릭 가능한 단어
-        start_index = self.chat_text.index(tk.END)
-        self.chat_text.insert(tk.END, word, "word_link")
-        end_index = self.chat_text.index(tk.END)
-        
+        tag_name = f"word_link_{self.word_tag_counter}"
+        self.word_tag_counter += 1
+        self.chat_text.insert(tk.END, word, (tag_name, "word_link"))
+
         # 클릭 이벤트 바인딩
-        self.chat_text.tag_bind("word_link", "<Button-1>", 
+        self.chat_text.tag_bind(tag_name, "<Button-1>",
                                lambda e, w=word: self.show_word_info(w))
-        self.chat_text.tag_bind("word_link", "<Enter>",
-                               lambda e: self.chat_text.config(cursor="hand2"))
-        self.chat_text.tag_bind("word_link", "<Leave>",
-                               lambda e: self.chat_text.config(cursor=""))
         
         self.chat_text.insert(tk.END, "\n")
         self.chat_text.see(tk.END)
