@@ -425,15 +425,16 @@ class WordChainGame:
             first_char = self.get_first_char(word)
             if allowed_chars is not None and first_char not in allowed_chars:
                 continue
-            
+
             # 이음 수 확인
             max_euem = max(entry.get('이음 수', 0) for entry in entries)
-            
+
             # 난이도에 따른 필터링
-            min_threshold = 3000 - (self.bot_difficulty * 250)
+            # 높은 난이도일수록 매우 낮은 이음 수(0에 가까운 값)도 허용
+            min_threshold = max(0, 3200 - (self.bot_difficulty * 400))
             if max_euem < min_threshold:
                 continue
-            
+
             possible_words.append((word, max_euem))
         
         if not possible_words:
