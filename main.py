@@ -74,8 +74,12 @@ class WordChainGame:
         self.game_history: List[Tuple[str, str]] = []  # (speaker, word)
         self.current_last_char: str = ""
         self.bot_difficulty: int = 5  # 1-10
-        
+
         self.word_tag_counter = 0
+        self.turn_time_limit = 30
+        self.timer_seconds_remaining = 0
+        self.timer_after_id: Optional[str] = None
+        self.game_active = False
 
         self.setup_ui()
         self.load_words()
@@ -142,11 +146,26 @@ class WordChainGame:
         status_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
         status_frame.pack(fill=tk.X, pady=(0, 10))
         
-        self.status_label = tk.Label(status_frame, 
+        self.status_label = tk.Label(status_frame,
                                      text="'시작' 버튼을 눌러 게임을 시작하세요",
                                      font=("맑은 고딕", 11),
                                      bg="white", fg="#666", wraplength=500)
         self.status_label.pack(pady=15, padx=10)
+
+        timer_container = tk.Frame(status_frame, bg="white")
+        timer_container.pack(fill=tk.X, padx=10, pady=(0, 10))
+
+        self.timer_label = tk.Label(timer_container,
+                                    text="남은 시간: --",
+                                    font=("맑은 고딕", 10),
+                                    bg="white", fg="#c0392b")
+        self.timer_label.pack(anchor=tk.W)
+
+        self.timer_progress = ttk.Progressbar(timer_container,
+                                              maximum=self.turn_time_limit,
+                                              value=0,
+                                              mode='determinate')
+        self.timer_progress.pack(fill=tk.X, pady=(5, 0))
         
         # 채팅 영역
         chat_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
@@ -225,6 +244,13 @@ class WordChainGame:
                              relief=tk.FLAT, padx=30, pady=10,
                              command=self.reset_game)
         reset_btn.pack(side=tk.LEFT, padx=5)
+
+        forfeit_btn = tk.Button(button_frame, text="포기",
+                                font=("맑은 고딕", 11, "bold"),
+                                bg="#c0392b", fg="white",
+                                relief=tk.FLAT, padx=30, pady=10,
+                                command=self.forfeit_game)
+        forfeit_btn.pack(side=tk.LEFT, padx=5)
         
     def load_words(self):
         """words.json 파일 로드"""
@@ -249,14 +275,20 @@ class WordChainGame:
         self.status_label.config(text="당신의 차례입니다", fg="#27ae60")
         self.word_entry.config(state=tk.NORMAL)
         self.word_entry.focus()
-    
+        self.game_active = True
+        self.start_timer()
+
     def reset_game(self):
         """게임 초기화"""
+        self.game_active = False
         self.used_words.clear()
         self.game_history.clear()
         self.current_last_char = ""
         self.word_tag_counter = 0
-        
+
+        self.stop_timer()
+        self.reset_timer_display()
+
         self.chat_text.config(state=tk.NORMAL)
         self.chat_text.delete(1.0, tk.END)
         self.chat_text.config(state=tk.DISABLED)
@@ -366,9 +398,12 @@ class WordChainGame:
     
     def submit_word(self):
         """사용자 단어 제출"""
+        if not self.game_active:
+            return
+
         word = self.word_entry.get().strip()
         self.word_entry.delete(0, tk.END)
-        
+
         if not word:
             return
         
@@ -396,7 +431,9 @@ class WordChainGame:
         self.used_words.add(word)
         self.game_history.append(("user", word))
         self.add_word_message("user", word)
-        
+
+        self.stop_timer()
+
         # 마지막 글자 업데이트
         last_char = self.get_last_char(word)
         self.current_last_char = last_char
@@ -441,6 +478,9 @@ class WordChainGame:
             self.add_system_message("봇이 말할 수 있는 단어가 없습니다. 당신의 승리!")
             self.status_label.config(text="게임 종료 - 당신의 승리! 🎉", fg="#27ae60")
             self.word_entry.config(state=tk.DISABLED)
+            self.game_active = False
+            self.stop_timer()
+            self.reset_timer_display()
             return
         
         # 사용자가 사용한 마지막 단어의 이음 수
@@ -461,6 +501,9 @@ class WordChainGame:
             self.add_system_message(f"봇이 단어를 찾지 못했습니다! (성공 확률: {base_prob:.1%})")
             self.status_label.config(text="게임 종료 - 당신의 승리! 🎉", fg="#27ae60")
             self.word_entry.config(state=tk.DISABLED)
+            self.game_active = False
+            self.stop_timer()
+            self.reset_timer_display()
             return
         
         # 단어 선택 - 난이도에 따라 이음 수 선호도 가중치 부여 후 랜덤 선택
@@ -496,10 +539,78 @@ class WordChainGame:
         self.apply_dueum_decrease(selected_first_char)
         
         # 사용자 차례
-        self.status_label.config(text=f"'{last_char}'(으)로 시작하는 단어를 입력하세요", 
+        self.status_label.config(text=f"'{last_char}'(으)로 시작하는 단어를 입력하세요",
                                 fg="#2c5aa0")
         self.word_entry.config(state=tk.NORMAL)
         self.word_entry.focus()
+        if self.game_active:
+            self.start_timer()
+
+    def start_timer(self):
+        """사용자 턴 타이머 시작"""
+        self.stop_timer()
+        self.timer_seconds_remaining = self.turn_time_limit
+        self.timer_progress.config(maximum=self.turn_time_limit)
+        self.timer_progress['value'] = self.turn_time_limit
+        self.update_timer_display()
+        self.timer_after_id = self.root.after(1000, self.update_timer)
+
+    def stop_timer(self):
+        """타이머 중지"""
+        if self.timer_after_id is not None:
+            self.root.after_cancel(self.timer_after_id)
+            self.timer_after_id = None
+
+    def update_timer(self):
+        """타이머 갱신"""
+        if self.timer_seconds_remaining <= 0:
+            return
+
+        self.timer_seconds_remaining -= 1
+        self.timer_progress['value'] = self.timer_seconds_remaining
+        self.update_timer_display()
+
+        if self.timer_seconds_remaining <= 0:
+            self.timer_progress['value'] = 0
+            self.handle_time_out()
+        else:
+            self.timer_after_id = self.root.after(1000, self.update_timer)
+
+    def update_timer_display(self):
+        """타이머 라벨 텍스트 갱신"""
+        if self.timer_seconds_remaining > 0:
+            self.timer_label.config(text=f"남은 시간: {self.timer_seconds_remaining:02d}초")
+        else:
+            self.timer_label.config(text="남은 시간: 00초")
+
+    def reset_timer_display(self):
+        """타이머 표시 초기화"""
+        self.timer_seconds_remaining = 0
+        self.timer_label.config(text="남은 시간: --")
+        self.timer_progress['value'] = 0
+
+    def handle_time_out(self):
+        """사용자 시간 초과 처리"""
+        if not self.game_active:
+            return
+
+        self.game_active = False
+        self.stop_timer()
+        self.word_entry.config(state=tk.DISABLED)
+        self.status_label.config(text="게임 종료 - 시간 초과! ⏰", fg="#c0392b")
+        self.add_system_message("시간 초과! 봇의 승리입니다.")
+
+    def forfeit_game(self):
+        """사용자 기권 처리"""
+        if not self.game_active:
+            return
+
+        self.game_active = False
+        self.stop_timer()
+        self.word_entry.config(state=tk.DISABLED)
+        self.status_label.config(text="게임 종료 - 당신의 패배", fg="#c0392b")
+        self.add_system_message("당신이 기권했습니다. 봇의 승리!")
+        self.reset_timer_display()
 
 if __name__ == "__main__":
     root = tk.Tk()
