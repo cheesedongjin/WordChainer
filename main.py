@@ -79,7 +79,7 @@ class WordChainGame:
         self.bot_difficulty: int = 5  # 1-10
 
         self.word_tag_counter = 0
-        self.base_turn_time_limit = 60
+        self.base_turn_time_limit = 30
         self.turn_time_limit = self.base_turn_time_limit
         self.timer_seconds_remaining = 0
         self.timer_after_id: Optional[str] = None
@@ -294,7 +294,7 @@ class WordChainGame:
 
     def update_turn_time_limit(self):
         """난이도에 따른 생각 시간 조정"""
-        extra_time = 30 if self.bot_difficulty >= 10 else 0
+        extra_time = 0 if self.bot_difficulty >= 10 else 0
         new_limit = self.base_turn_time_limit + extra_time
 
         if new_limit == self.turn_time_limit:
