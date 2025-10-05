@@ -248,13 +248,6 @@ class WordChainGame:
                              command=self.start_game)
         start_btn.pack(side=tk.LEFT, padx=5)
         
-        reset_btn = tk.Button(button_frame, text="다시 시작",
-                             font=("맑은 고딕", 18, "bold"),
-                             bg="#e67e22", fg="white",
-                             relief=tk.FLAT, padx=30, pady=10,
-                             command=self.reset_game)
-        reset_btn.pack(side=tk.LEFT, padx=5)
-
         forfeit_btn = tk.Button(button_frame, text="포기",
                                 font=("맑은 고딕", 18, "bold"),
                                 bg="#c0392b", fg="white",
@@ -739,7 +732,7 @@ class WordChainGame:
         if outcome == "fail":
             base_prob = result.get("base_prob", 0.0)
             self.add_system_message(
-                f"봇이 단어를 찾지 못했습니다! (성공 확률: {base_prob:.1%})"
+                f"봇이 단어를 찾지 못했습니다. 당신의 승리!"
             )
             self.status_label.config(text="게임 종료 - 당신의 승리! 🎉", fg="#27ae60")
             self.word_entry.config(state=tk.DISABLED)
