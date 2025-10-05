@@ -338,7 +338,7 @@ class WordChainGame:
     def start_game(self):
         """게임 시작"""
         self.reset_game()
-        self.add_system_message("게임이 시작되었습니다! 아무 단어나 입력하세요.")
+        self.add_system_message(f"{self.bot_difficulty}단계 봇과의 게임이 시작되었습니다! 아무 단어나 입력하세요.")
         self.status_label.config(text="당신의 차례입니다", fg="#27ae60")
         self.word_entry.config(state=tk.NORMAL)
         self.word_entry.focus()
