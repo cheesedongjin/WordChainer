@@ -489,6 +489,9 @@ class WordChainGame:
         """사용자가 말할 수 있었던 단어 예시를 시스템 메시지로 출력"""
         suggestions = self.get_possible_user_words(limit)
 
+        if not self.current_last_char:
+            return
+
         if not suggestions:
             self.add_system_message("사용자가 말할 수 있는 단어가 없었습니다.")
             return
