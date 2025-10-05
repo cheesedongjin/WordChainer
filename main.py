@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import json
 import random
+import threading
 from typing import Dict, List, Optional, Set, Tuple
 
 # -------------------------------------------------------------------------
@@ -80,6 +81,8 @@ class WordChainGame:
         self.turn_time_limit = self.base_turn_time_limit
         self.timer_seconds_remaining = 0
         self.timer_after_id: Optional[str] = None
+        self.pending_bot_after_id: Optional[str] = None
+        self.bot_turn_sequence = 0
         self.game_active = False
 
         self.setup_ui()
@@ -312,6 +315,8 @@ class WordChainGame:
     def reset_game(self):
         """게임 초기화"""
         self.game_active = False
+        self.cancel_pending_bot_turn()
+        self.invalidate_bot_turn()
         self.used_words.clear()
         self.game_history.clear()
         self.current_last_char = ""
@@ -413,16 +418,19 @@ class WordChainGame:
             variants.add(transformed)
         return variants
 
-    def count_available_followups(self, last_char: str, exclude_word: Optional[str] = None) -> int:
+    def count_available_followups(self, last_char: str,
+                                  exclude_word: Optional[str] = None,
+                                  used_words: Optional[Set[str]] = None) -> int:
         """특정 글자로 시작하는 사용 가능한 단어 수를 계산"""
         if not last_char:
             return 0
 
         allowed_chars = self.get_dueum_variants(last_char)
         count = 0
+        used = self.used_words if used_words is None else used_words
 
         for word in self.words_data.keys():
-            if word == exclude_word or word in self.used_words:
+            if word == exclude_word or word in used:
                 continue
 
             if self.get_first_char(word) in allowed_chars:
@@ -480,7 +488,18 @@ class WordChainGame:
                 for entry in entries:
                     if '이음 수' in entry:
                         entry['이음 수'] = max(0, entry['이음 수'] - 1)
-    
+
+    def cancel_pending_bot_turn(self):
+        """대기 중인 봇 실행 예약 취소"""
+        if self.pending_bot_after_id is not None:
+            self.root.after_cancel(self.pending_bot_after_id)
+            self.pending_bot_after_id = None
+
+    def invalidate_bot_turn(self) -> int:
+        """현재 봇 턴 시퀀스를 갱신"""
+        self.bot_turn_sequence += 1
+        return self.bot_turn_sequence
+
     def submit_word(self):
         """사용자 단어 제출"""
         if not self.game_active:
@@ -537,39 +556,145 @@ class WordChainGame:
         # 봇 차례
         self.status_label.config(text="봇이 생각 중...", fg="#e67e22")
         self.word_entry.config(state=tk.DISABLED)
-        self.root.after(1000, self.bot_turn)
-    
-    def bot_turn(self):
-        """봇의 차례"""
-        # 사용 가능한 단어 찾기
-        possible_words = []
-        
-        allowed_chars = None
-        if self.current_last_char:
-            allowed_chars = self.get_dueum_variants(self.current_last_char)
+        self.cancel_pending_bot_turn()
+        turn_id = self.invalidate_bot_turn()
+        self.pending_bot_after_id = self.root.after(
+            1000, lambda: self.bot_turn(turn_id)
+        )
+
+    def bot_turn(self, turn_id: int):
+        """봇의 차례를 백그라운드 스레드로 처리"""
+        self.pending_bot_after_id = None
+        if turn_id != self.bot_turn_sequence or not self.game_active:
+            return
+
+        threading.Thread(
+            target=self._bot_turn_worker,
+            args=(turn_id,),
+            daemon=True
+        ).start()
+
+    def _bot_turn_worker(self, turn_id: int):
+        if turn_id != self.bot_turn_sequence or not self.game_active:
+            return
+
+        result = self._compute_bot_decision()
+
+        if turn_id != self.bot_turn_sequence or not self.game_active:
+            return
+
+        self.root.after(0, lambda: self._apply_bot_result(turn_id, result))
+
+    def _compute_bot_decision(self) -> Dict[str, Optional[str]]:
+        possible_words: List[Tuple[str, int]] = []
+        used_words_snapshot = set(self.used_words)
+        game_history_snapshot = list(self.game_history)
+        last_required_char = self.current_last_char
+
+        if not game_history_snapshot:
+            return {"type": "no_word"}
+
+        allowed_chars: Optional[Set[str]] = None
+        if last_required_char:
+            allowed_chars = self.get_dueum_variants(last_required_char)
 
         for word, entries in self.words_data.items():
-            if word in self.used_words:
+            if word in used_words_snapshot:
                 continue
 
             first_char = self.get_first_char(word)
             if allowed_chars is not None and first_char not in allowed_chars:
                 continue
 
-            # 이음 수 확인
             max_euem = max(entry.get('이음 수', 0) for entry in entries)
-            if len(self.game_history) < 4 and max_euem == 0:
+            if len(game_history_snapshot) < 4 and max_euem == 0:
                 continue
 
-            # 난이도에 따른 필터링
-            # 높은 난이도일수록 매우 낮은 이음 수(0에 가까운 값)도 허용
             min_threshold = max(0, 3200 - (self.bot_difficulty * 400))
             if max_euem < min_threshold:
                 continue
 
             possible_words.append((word, max_euem))
-        
+
         if not possible_words:
+            return {"type": "no_word"}
+
+        safe_words: List[Tuple[str, int]] = []
+        for word, euem in possible_words:
+            last_char = self.get_last_char(word)
+            remaining = self.count_available_followups(
+                last_char, exclude_word=word, used_words=used_words_snapshot
+            )
+            if remaining > 0:
+                safe_words.append((word, euem))
+
+        if safe_words:
+            possible_words = safe_words
+
+        last_user_word = game_history_snapshot[-1][1]
+        last_euem = max(
+            entry.get('이음 수', 0)
+            for entry in self.words_data[last_user_word]
+        )
+
+        base_prob = 1.0
+        if last_euem < 1000:
+            difficulty_factor = self.bot_difficulty / 10.0
+            euem_factor = last_euem / 1000.0
+
+            base_skill = 0.35 + (0.65 * difficulty_factor)
+            penalty_scale = (1 - difficulty_factor) ** 3
+            low_euem_penalty = (1 - euem_factor) * 0.4 * penalty_scale
+            euem_bonus = euem_factor * 0.25 * (1 - penalty_scale)
+
+            base_prob = base_skill - low_euem_penalty + euem_bonus
+            base_prob = max(0.1, min(1.0, base_prob))
+
+        should_fail = False
+        if self.bot_difficulty < 10:
+            should_fail = random.random() > base_prob
+
+        if should_fail:
+            return {"type": "fail", "base_prob": base_prob}
+
+        min_euem = min(euem for _, euem in possible_words)
+        max_euem_val = max(euem for _, euem in possible_words)
+        difficulty_factor = self.bot_difficulty / 10.0
+
+        if self.bot_difficulty >= 10:
+            min_candidates = [
+                word for word, euem in possible_words if euem == min_euem
+            ]
+            selected_word = random.choice(min_candidates)
+        else:
+            if max_euem_val == min_euem:
+                weights = [1.0 for _ in possible_words]
+            else:
+                weights = []
+                for _, euem in possible_words:
+                    normalized = (euem - min_euem) / (max_euem_val - min_euem)
+                    high_pref = (1.0 - difficulty_factor) * normalized
+                    low_pref = difficulty_factor * (1.0 - normalized)
+                    weights.append(high_pref + low_pref + 0.05)
+
+            selected_word = random.choices(
+                [word for word, _ in possible_words], weights=weights, k=1
+            )[0]
+
+        return {
+            "type": "word",
+            "word": selected_word,
+            "first_char": self.get_first_char(selected_word),
+            "last_char": self.get_last_char(selected_word),
+        }
+
+    def _apply_bot_result(self, turn_id: int, result: Dict[str, Optional[str]]):
+        if turn_id != self.bot_turn_sequence or not self.game_active:
+            return
+
+        outcome = result.get("type")
+
+        if outcome == "no_word":
             self.add_system_message("봇이 말할 수 있는 단어가 없습니다. 당신의 승리!")
             self.status_label.config(text="게임 종료 - 당신의 승리! 🎉", fg="#27ae60")
             self.word_entry.config(state=tk.DISABLED)
@@ -578,92 +703,39 @@ class WordChainGame:
             self.reset_timer_display()
             return
 
-        # 다음 차례에 사용 가능한 단어가 전혀 남지 않도록 만드는 단어는 가급적 피한다.
-        safe_words = []
-        for word, euem in possible_words:
-            last_char = self.get_last_char(word)
-            remaining = self.count_available_followups(last_char, exclude_word=word)
-            if remaining > 0:
-                safe_words.append((word, euem))
-
-        if safe_words:
-            possible_words = safe_words
-
-        # 사용자가 사용한 마지막 단어의 이음 수
-        last_user_word = self.game_history[-1][1]
-        last_euem = max(entry.get('이음 수', 0)
-                       for entry in self.words_data[last_user_word])
-
-        # 성공 확률 계산
-        base_prob = 1.0
-        if last_euem < 1000:
-            difficulty_factor = self.bot_difficulty / 10.0
-            euem_factor = last_euem / 1000.0
-
-            # 높은 난이도에서는 낮은 이음 수로 인한 감소폭을 크게 줄인다.
-            base_skill = 0.35 + (0.65 * difficulty_factor)
-            penalty_scale = (1 - difficulty_factor) ** 3
-            low_euem_penalty = (1 - euem_factor) * 0.4 * penalty_scale
-            euem_bonus = euem_factor * 0.25 * (1 - penalty_scale)
-
-            base_prob = base_skill - low_euem_penalty + euem_bonus
-            base_prob = max(0.1, min(1.0, base_prob))
-        
-        # 확률에 따라 실패할 수도 있음 (단, 난이도 10은 가능한 단어가 있다면 반드시 응답)
-        should_fail = False
-        if self.bot_difficulty < 10:
-            should_fail = random.random() > base_prob
-
-        if should_fail:
-            self.add_system_message(f"봇이 단어를 찾지 못했습니다! (성공 확률: {base_prob:.1%})")
+        if outcome == "fail":
+            base_prob = result.get("base_prob", 0.0)
+            self.add_system_message(
+                f"봇이 단어를 찾지 못했습니다! (성공 확률: {base_prob:.1%})"
+            )
             self.status_label.config(text="게임 종료 - 당신의 승리! 🎉", fg="#27ae60")
             self.word_entry.config(state=tk.DISABLED)
             self.game_active = False
             self.stop_timer()
             self.reset_timer_display()
             return
-        
-        # 단어 선택 - 난이도에 따라 이음 수 선호도 가중치 부여 후 랜덤 선택
-        min_euem = min(euem for _, euem in possible_words)
-        max_euem = max(euem for _, euem in possible_words)
-        difficulty_factor = self.bot_difficulty / 10.0
 
-        if self.bot_difficulty >= 10:
-            # 난이도 10에서는 가능한 단어 중 이음 수가 가장 낮은 것을 선택
-            min_candidates = [word for word, euem in possible_words
-                              if euem == min_euem]
-            selected_word = random.choice(min_candidates)
-        else:
-            if max_euem == min_euem:
-                weights = [1.0 for _ in possible_words]
-            else:
-                weights = []
-                for _, euem in possible_words:
-                    normalized = (euem - min_euem) / (max_euem - min_euem)
-                    # 낮은 난이도에서는 높은 이음 수 선호, 높은 난이도에서는 낮은 이음 수 선호
-                    high_pref = (1.0 - difficulty_factor) * normalized
-                    low_pref = difficulty_factor * (1.0 - normalized)
-                    weights.append(high_pref + low_pref + 0.05)  # 완전 0 회피용 보정
+        if outcome != "word":
+            return
 
-            selected_word = random.choices([word for word, _ in possible_words],
-                                           weights=weights, k=1)[0]
-        selected_first_char = self.get_first_char(selected_word)
-        
-        # 봇 단어 추가
+        selected_word = result.get("word")
+        if not selected_word:
+            return
+
+        selected_first_char = result.get("first_char", "")
+        last_char = result.get("last_char", "")
+
         self.used_words.add(selected_word)
         self.game_history.append(("bot", selected_word))
         self.add_word_message("bot", selected_word)
-        
-        # 마지막 글자 업데이트
-        last_char = self.get_last_char(selected_word)
+
         self.current_last_char = last_char
-        
-        # 이음 수 감소
         self.apply_dueum_decrease(selected_first_char)
-        
-        # 사용자 차례
-        self.status_label.config(text=f"'{last_char}'(으)로 시작하는 단어를 입력하세요",
-                                fg="#2c5aa0")
+
+        self.status_label.config(
+            text=f"'{last_char}'(으)로 시작하는 단어를 입력하세요",
+            fg="#2c5aa0"
+        )
         self.word_entry.config(state=tk.NORMAL)
         self.word_entry.focus()
         if self.game_active:
@@ -719,6 +791,8 @@ class WordChainGame:
             return
 
         self.game_active = False
+        self.cancel_pending_bot_turn()
+        self.invalidate_bot_turn()
         self.stop_timer()
         self.word_entry.config(state=tk.DISABLED)
         self.status_label.config(text="게임 종료 - 시간 초과! ⏰", fg="#c0392b")
@@ -731,6 +805,8 @@ class WordChainGame:
             return
 
         self.game_active = False
+        self.cancel_pending_bot_turn()
+        self.invalidate_bot_turn()
         self.stop_timer()
         self.word_entry.config(state=tk.DISABLED)
         self.status_label.config(text="게임 종료 - 당신의 패배", fg="#c0392b")
