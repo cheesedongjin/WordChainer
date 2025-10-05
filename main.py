@@ -539,6 +539,14 @@ class WordChainGame:
             return
         
         # 단어 검증
+        if not is_hangul_syllable(word[0]) or not is_hangul_syllable(word[-1]):
+            self.show_warning_message(f"{word}는 잘못된 단어입니다: 한글로 시작하고 끝나야 합니다.")
+            return
+        
+        if len(word) < 2:
+            self.show_warning_message(f"{word}는 잘못된 단어입니다: 최소 2글자 이상이어야 합니다.")
+            return
+
         if word not in self.words_data:
             self.show_warning_message(f"{word}는 잘못된 단어입니다: 사전에 없는 단어입니다.")
             return
