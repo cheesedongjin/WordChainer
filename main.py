@@ -528,7 +528,7 @@ class WordChainGame:
             self.add_system_message("사용자가 말할 수 있는 단어가 없었습니다.")
             return
 
-        prefix = f"사용자가 말할 수 있었던 단어 예시 (최대 {limit}개): "
+        prefix = f"사용자가 말할 수 있었던 단어 예시 (최대 {limit}개 표시): "
         self.add_system_message_with_word_links(prefix, suggestions)
 
     def apply_dueum_decrease(self, char):
