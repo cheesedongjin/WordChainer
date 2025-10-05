@@ -87,7 +87,14 @@ class WordChainGame:
         self.bot_turn_sequence = 0
         self.game_active = False
 
+        self.stats_file = "game_stats.json"
+        self.win_count = 0
+        self.loss_count = 0
+
+        self.load_stats()
+
         self.setup_ui()
+        self.refresh_stats_label()
         self.load_words()
 
     def try_maximize_window(self):
@@ -184,6 +191,12 @@ class WordChainGame:
                                               value=0,
                                               mode='determinate')
         self.timer_progress.pack(fill=tk.X, pady=(5, 0))
+
+        self.stats_label = tk.Label(status_frame,
+                                    text=self.get_stats_text(),
+                                    font=("맑은 고딕", 16, "bold"),
+                                    bg="white", fg="#2c3e50")
+        self.stats_label.pack(pady=(0, 10))
         
         # 채팅 영역
         chat_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
@@ -276,6 +289,42 @@ class WordChainGame:
             self.show_warning_message("words.json 파일을 찾을 수 없습니다.")
         except json.JSONDecodeError:
             self.show_warning_message("JSON 파일 형식이 올바르지 않습니다.")
+
+    def load_stats(self):
+        """게임 전적 로드"""
+        try:
+            with open(self.stats_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            self.win_count = int(data.get('wins', 0))
+            self.loss_count = int(data.get('losses', 0))
+        except (FileNotFoundError, json.JSONDecodeError, ValueError, TypeError):
+            self.win_count = 0
+            self.loss_count = 0
+
+    def save_stats(self):
+        """게임 전적 저장"""
+        try:
+            with open(self.stats_file, 'w', encoding='utf-8') as f:
+                json.dump({'wins': self.win_count, 'losses': self.loss_count}, f,
+                          ensure_ascii=False, indent=2)
+        except OSError:
+            pass
+
+    def get_stats_text(self) -> str:
+        return f"전적 - 승리: {self.win_count}  패배: {self.loss_count}"
+
+    def refresh_stats_label(self):
+        if hasattr(self, 'stats_label'):
+            self.stats_label.config(text=self.get_stats_text())
+
+    def update_stats(self, wins: int = 0, losses: int = 0):
+        if wins == 0 and losses == 0:
+            return
+
+        self.win_count += wins
+        self.loss_count += losses
+        self.refresh_stats_label()
+        self.save_stats()
 
     def build_word_indexes(self):
         """단어 검색 속도를 높이기 위해 색인 생성"""
@@ -778,6 +827,7 @@ class WordChainGame:
             self.game_active = False
             self.stop_timer()
             self.reset_timer_display()
+            self.update_stats(wins=1)
             return
 
         if outcome == "fail":
@@ -790,6 +840,7 @@ class WordChainGame:
             self.game_active = False
             self.stop_timer()
             self.reset_timer_display()
+            self.update_stats(wins=1)
             return
 
         if outcome != "word":
@@ -875,6 +926,7 @@ class WordChainGame:
         self.status_label.config(text="게임 종료 - 시간 초과! ⏰", fg="#c0392b")
         self.add_system_message("시간 초과! 봇의 승리입니다.")
         self.show_possible_user_words()
+        self.update_stats(losses=1)
 
     def forfeit_game(self):
         """사용자 기권 처리"""
@@ -890,6 +942,7 @@ class WordChainGame:
         self.add_system_message("당신이 기권했습니다. 봇의 승리!")
         self.show_possible_user_words()
         self.reset_timer_display()
+        self.update_stats(losses=1)
 
 if __name__ == "__main__":
     root = tk.Tk()
