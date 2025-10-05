@@ -518,18 +518,18 @@ class WordChainGame:
         
         # 단어 검증
         if word not in self.words_data:
-            self.show_warning_message("사전에 없는 단어입니다.")
+            self.show_warning_message(f"{word}는 잘못된 단어입니다: 사전에 없는 단어입니다.")
             return
 
         max_euem = max((entry.get('이음 수', 0)
                          for entry in self.words_data[word]), default=0)
         if len(self.game_history) < 4 and max_euem == 0:
             self.show_warning_message(
-                "게임 시작 후 4턴까지는 이음 수가 0인 단어를 사용할 수 없습니다.")
+                f"{word}는 잘못된 단어입니다: 게임 시작 후 4턴까지는 이음 수가 0인 단어를 사용할 수 없습니다.")
             return
 
         if word in self.used_words:
-            self.show_warning_message("이미 사용된 단어입니다.")
+            self.show_warning_message(f"{word}는 잘못된 단어입니다: 이미 사용된 단어입니다.")
             return
 
         first_char = self.get_first_char(word)
@@ -539,7 +539,7 @@ class WordChainGame:
             allowed_chars = self.get_dueum_variants(self.current_last_char)
             if first_char not in allowed_chars:
                 self.show_warning_message(
-                    f"'{self.current_last_char}'(으)로 시작하는 단어를 입력하세요.")
+                    f"{word}는 잘못된 단어입니다: '{self.current_last_char}'(으)로 시작하는 단어를 입력하세요.")
                 return
         
         # 단어 추가
