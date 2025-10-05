@@ -133,14 +133,16 @@ class WordChainGame:
         self.difficulty_var = tk.IntVar(value=5)
         difficulty_scale = ttk.Scale(difficulty_frame, from_=1, to=5, 
                                     variable=self.difficulty_var,
-                                    orient=tk.HORIZONTAL, length=200,
-                                    command=self.on_difficulty_change)
+                                    orient=tk.HORIZONTAL, length=200)
+        difficulty_scale.set(3)
         difficulty_scale.pack(side=tk.LEFT, padx=10, pady=10)
         
-        self.difficulty_label = tk.Label(difficulty_frame, text="5", 
+        self.difficulty_label = tk.Label(difficulty_frame, text="3", 
                                          font=("맑은 고딕", 18, "bold"),
                                          bg="white", fg="#4a90e2")
         self.difficulty_label.pack(side=tk.LEFT, padx=10)
+        
+        difficulty_scale.config(command=self.on_difficulty_change)
         
         # 게임 상태
         status_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
@@ -201,6 +203,8 @@ class WordChainGame:
         self.word_entry.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, 
                             padx=10, pady=10)
         self.word_entry.bind('<Return>', lambda e: self.submit_word())
+
+        self.word_entry.config(state=tk.DISABLED)
         
         submit_btn = tk.Button(input_frame, text="제출", 
                               font=("맑은 고딕", 18, "bold"),
@@ -266,7 +270,7 @@ class WordChainGame:
     def on_difficulty_change(self, value):
         """난이도 변경 처리"""
         self.bot_difficulty = int(float(value) + 5)
-        self.difficulty_label.config(text=str(self.bot_difficulty))
+        self.difficulty_label.config(text=str(self.bot_difficulty - 5))
     
     def start_game(self):
         """게임 시작"""
