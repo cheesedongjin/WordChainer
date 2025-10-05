@@ -434,7 +434,7 @@ class WordChainGame:
         suggestions = self.get_possible_user_words(limit)
 
         if not suggestions:
-            self.add_system_message("사용자가 말할 수 있는 다른 단어가 없었습니다.")
+            self.add_system_message("사용자가 말할 수 있는 단어가 없었습니다.")
             return
 
         suggestion_text = ", ".join(suggestions)
