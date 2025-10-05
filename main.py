@@ -366,6 +366,38 @@ class WordChainGame:
         self.chat_text.see(tk.END)
         self.chat_text.config(state=tk.DISABLED)
 
+    def add_system_message_with_word_links(self, prefix: str, words: List[str]):
+        """클릭 가능한 단어 목록이 포함된 시스템 메시지 추가"""
+        if not words:
+            self.add_system_message(prefix.strip())
+            return
+
+        self.chat_text.config(state=tk.NORMAL)
+        self.chat_text.insert(tk.END, "[시스템] ", "system")
+        self.chat_text.insert(tk.END, prefix, "system")
+
+        for idx, word in enumerate(words):
+            if idx > 0:
+                self.chat_text.insert(tk.END, ", ", "system")
+
+            tag_name = f"word_link_{self.word_tag_counter}"
+            self.word_tag_counter += 1
+
+            self.chat_text.insert(
+                tk.END,
+                word,
+                ("system", tag_name, "word_link"),
+            )
+            self.chat_text.tag_bind(
+                tag_name,
+                "<Button-1>",
+                lambda e, w=word: self.show_word_info(w),
+            )
+
+        self.chat_text.insert(tk.END, "\n")
+        self.chat_text.see(tk.END)
+        self.chat_text.config(state=tk.DISABLED)
+
     def show_warning_message(self, message: str):
         """경고 메시지를 화면에 출력"""
         self.add_system_message(f"⚠️ {message}")
@@ -496,10 +528,8 @@ class WordChainGame:
             self.add_system_message("사용자가 말할 수 있는 단어가 없었습니다.")
             return
 
-        suggestion_text = ", ".join(suggestions)
-        self.add_system_message(
-            f"사용자가 말할 수 있었던 단어 예시 (최대 {limit}개): {suggestion_text}"
-        )
+        prefix = f"사용자가 말할 수 있었던 단어 예시 (최대 {limit}개): "
+        self.add_system_message_with_word_links(prefix, suggestions)
 
     def apply_dueum_decrease(self, char):
         """해당 글자와 두음 변환 결과로 끝나는 모든 단어의 이음 수 -1"""
