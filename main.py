@@ -552,19 +552,25 @@ class WordChainGame:
         max_euem = max(euem for _, euem in possible_words)
         difficulty_factor = self.bot_difficulty / 10.0
 
-        if max_euem == min_euem:
-            weights = [1.0 for _ in possible_words]
+        if self.bot_difficulty >= 10:
+            # 난이도 10에서는 가능한 단어 중 이음 수가 가장 낮은 것을 선택
+            min_candidates = [word for word, euem in possible_words
+                              if euem == min_euem]
+            selected_word = random.choice(min_candidates)
         else:
-            weights = []
-            for _, euem in possible_words:
-                normalized = (euem - min_euem) / (max_euem - min_euem)
-                # 낮은 난이도에서는 높은 이음 수 선호, 높은 난이도에서는 낮은 이음 수 선호
-                high_pref = (1.0 - difficulty_factor) * normalized
-                low_pref = difficulty_factor * (1.0 - normalized)
-                weights.append(high_pref + low_pref + 0.05)  # 완전 0 회피용 보정
+            if max_euem == min_euem:
+                weights = [1.0 for _ in possible_words]
+            else:
+                weights = []
+                for _, euem in possible_words:
+                    normalized = (euem - min_euem) / (max_euem - min_euem)
+                    # 낮은 난이도에서는 높은 이음 수 선호, 높은 난이도에서는 낮은 이음 수 선호
+                    high_pref = (1.0 - difficulty_factor) * normalized
+                    low_pref = difficulty_factor * (1.0 - normalized)
+                    weights.append(high_pref + low_pref + 0.05)  # 완전 0 회피용 보정
 
-        selected_word = random.choices([word for word, _ in possible_words],
-                                       weights=weights, k=1)[0]
+            selected_word = random.choices([word for word, _ in possible_words],
+                                           weights=weights, k=1)[0]
         selected_first_char = self.get_first_char(selected_word)
         
         # 봇 단어 추가
