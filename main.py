@@ -137,9 +137,18 @@ class WordChainGame:
                 bg="white").pack(side=tk.LEFT, padx=10, pady=10)
         
         self.difficulty_var = tk.IntVar(value=3)
-        difficulty_scale = ttk.Scale(difficulty_frame, from_=1, to=5,
-                                     variable=self.difficulty_var,
-                                     orient=tk.HORIZONTAL, length=200)
+        difficulty_scale = tk.Scale(
+            difficulty_frame,
+            from_=1,
+            to=5,
+            variable=self.difficulty_var,
+            orient=tk.HORIZONTAL,
+            length=200,
+            resolution=1,
+            showvalue=0,
+            bg="white",
+            highlightthickness=0,
+        )
         difficulty_scale.set(self.difficulty_var.get())
         difficulty_scale.pack(side=tk.LEFT, padx=10, pady=10)
         
