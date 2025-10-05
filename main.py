@@ -76,7 +76,7 @@ class WordChainGame:
         self.bot_difficulty: int = 5  # 1-10
 
         self.word_tag_counter = 0
-        self.base_turn_time_limit = 40
+        self.base_turn_time_limit = 60
         self.turn_time_limit = self.base_turn_time_limit
         self.timer_seconds_remaining = 0
         self.timer_after_id: Optional[str] = None
