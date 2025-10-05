@@ -386,6 +386,23 @@ class WordChainGame:
             variants.add(transformed)
         return variants
 
+    def count_available_followups(self, last_char: str, exclude_word: Optional[str] = None) -> int:
+        """특정 글자로 시작하는 사용 가능한 단어 수를 계산"""
+        if not last_char:
+            return 0
+
+        allowed_chars = self.get_dueum_variants(last_char)
+        count = 0
+
+        for word in self.words_data.keys():
+            if word == exclude_word or word in self.used_words:
+                continue
+
+            if self.get_first_char(word) in allowed_chars:
+                count += 1
+
+        return count
+
     def apply_dueum_decrease(self, char):
         """해당 글자와 두음 변환 결과로 끝나는 모든 단어의 이음 수 -1"""
         if not char:
@@ -484,12 +501,23 @@ class WordChainGame:
             self.stop_timer()
             self.reset_timer_display()
             return
-        
+
+        # 다음 차례에 사용 가능한 단어가 전혀 남지 않도록 만드는 단어는 가급적 피한다.
+        safe_words = []
+        for word, euem in possible_words:
+            last_char = self.get_last_char(word)
+            remaining = self.count_available_followups(last_char, exclude_word=word)
+            if remaining > 0:
+                safe_words.append((word, euem))
+
+        if safe_words:
+            possible_words = safe_words
+
         # 사용자가 사용한 마지막 단어의 이음 수
         last_user_word = self.game_history[-1][1]
-        last_euem = max(entry.get('이음 수', 0) 
+        last_euem = max(entry.get('이음 수', 0)
                        for entry in self.words_data[last_user_word])
-        
+
         # 성공 확률 계산
         base_prob = 1.0
         if last_euem < 1000:
@@ -505,8 +533,12 @@ class WordChainGame:
             base_prob = base_skill - low_euem_penalty + euem_bonus
             base_prob = max(0.1, min(1.0, base_prob))
         
-        # 확률에 따라 실패할 수도 있음
-        if random.random() > base_prob:
+        # 확률에 따라 실패할 수도 있음 (단, 난이도 10은 가능한 단어가 있다면 반드시 응답)
+        should_fail = False
+        if self.bot_difficulty < 10:
+            should_fail = random.random() > base_prob
+
+        if should_fail:
             self.add_system_message(f"봇이 단어를 찾지 못했습니다! (성공 확률: {base_prob:.1%})")
             self.status_label.config(text="게임 종료 - 당신의 승리! 🎉", fg="#27ae60")
             self.word_entry.config(state=tk.DISABLED)
