@@ -90,11 +90,17 @@ class WordChainGame:
         self.stats_file = "game_stats.json"
         self.win_count = 0
         self.loss_count = 0
+        self.stats_by_difficulty = {
+            level: {"wins": 0, "losses": 0} for level in range(1, 6)
+        }
+        self.difficulty_stats_rows = {}
+        self.active_game_difficulty: Optional[int] = None
 
         self.load_stats()
 
         self.setup_ui()
         self.refresh_stats_label()
+        self.refresh_difficulty_stats_panel()
         self.load_words()
 
     def try_maximize_window(self):
@@ -243,12 +249,40 @@ class WordChainGame:
         submit_btn.pack(side=tk.RIGHT, padx=10, pady=10)
         
         # 오른쪽 패널 (단어 정보)
-        right_panel = tk.Frame(main_container, bg="white", 
-                              relief=tk.RAISED, bd=1, width=300)
+        right_panel = tk.Frame(main_container, bg="white",
+                              relief=tk.RAISED, bd=1, width=320)
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(10, 0))
         right_panel.pack_propagate(False)
-        
-        tk.Label(right_panel, text="단어 정보", 
+
+        stats_panel = tk.Frame(right_panel, bg="#eef5ff", relief=tk.GROOVE, bd=1)
+        stats_panel.pack(fill=tk.X, padx=10, pady=(10, 5))
+
+        tk.Label(stats_panel, text="난이도별 전적",
+                 font=("맑은 고딕", 16, "bold"),
+                 bg="#eef5ff", fg="#2c3e50").pack(anchor=tk.W, padx=10, pady=(10, 5))
+
+        self.difficulty_stats_rows = {}
+        for level in range(1, 6):
+            row_frame = tk.Frame(stats_panel, bg="#eef5ff")
+            row_frame.pack(fill=tk.X, padx=10, pady=2)
+
+            level_label = tk.Label(row_frame,
+                                   text=f"{level}단계",
+                                   font=("맑은 고딕", 13, "bold"),
+                                   bg="#eef5ff", fg="#2c3e50")
+            level_label.pack(side=tk.LEFT)
+
+            value_label = tk.Label(row_frame,
+                                   text="승리 0 | 패배 0",
+                                   font=("맑은 고딕", 12),
+                                   bg="#eef5ff", fg="#2c3e50")
+            value_label.pack(side=tk.RIGHT)
+
+            self.difficulty_stats_rows[level] = (row_frame, level_label, value_label)
+
+        ttk.Separator(right_panel, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=10, pady=(10, 5))
+
+        tk.Label(right_panel, text="단어 정보",
                 font=("맑은 고딕", 20, "bold"),
                 bg="white").pack(anchor=tk.W, padx=10, pady=10)
         
@@ -297,16 +331,60 @@ class WordChainGame:
                 data = json.load(f)
             self.win_count = int(data.get('wins', 0))
             self.loss_count = int(data.get('losses', 0))
+            self.stats_by_difficulty = {
+                level: {"wins": 0, "losses": 0} for level in range(1, 6)
+            }
+
+            by_difficulty = data.get('by_difficulty', {})
+            if isinstance(by_difficulty, dict):
+                for key, value in by_difficulty.items():
+                    try:
+                        level = int(key)
+                    except (TypeError, ValueError):
+                        continue
+
+                    if not isinstance(value, dict):
+                        continue
+
+                    try:
+                        wins = int(value.get('wins', 0))
+                    except (TypeError, ValueError):
+                        wins = 0
+
+                    try:
+                        losses = int(value.get('losses', 0))
+                    except (TypeError, ValueError):
+                        losses = 0
+
+                    if level not in self.stats_by_difficulty:
+                        self.stats_by_difficulty[level] = {"wins": 0, "losses": 0}
+
+                    self.stats_by_difficulty[level]['wins'] = max(wins, 0)
+                    self.stats_by_difficulty[level]['losses'] = max(losses, 0)
         except (FileNotFoundError, json.JSONDecodeError, ValueError, TypeError):
             self.win_count = 0
             self.loss_count = 0
+            self.stats_by_difficulty = {
+                level: {"wins": 0, "losses": 0} for level in range(1, 6)
+            }
 
     def save_stats(self):
         """게임 전적 저장"""
         try:
+            by_difficulty = {
+                str(level): {
+                    'wins': stats.get('wins', 0),
+                    'losses': stats.get('losses', 0)
+                }
+                for level, stats in sorted(self.stats_by_difficulty.items())
+            }
+
             with open(self.stats_file, 'w', encoding='utf-8') as f:
-                json.dump({'wins': self.win_count, 'losses': self.loss_count}, f,
-                          ensure_ascii=False, indent=2)
+                json.dump({
+                    'wins': self.win_count,
+                    'losses': self.loss_count,
+                    'by_difficulty': by_difficulty
+                }, f, ensure_ascii=False, indent=2)
         except OSError:
             pass
 
@@ -317,14 +395,50 @@ class WordChainGame:
         if hasattr(self, 'stats_label'):
             self.stats_label.config(text=self.get_stats_text())
 
-    def update_stats(self, wins: int = 0, losses: int = 0):
+    def refresh_difficulty_stats_panel(self):
+        rows = getattr(self, 'difficulty_stats_rows', None)
+        if not rows:
+            return
+
+        for level, (row_frame, level_label, value_label) in rows.items():
+            stats = self.stats_by_difficulty.get(level, {"wins": 0, "losses": 0})
+            value_label.config(
+                text=f"승리 {stats.get('wins', 0)} | 패배 {stats.get('losses', 0)}"
+            )
+
+            highlight = self.bot_difficulty == level
+            bg_color = "#d6eaff" if highlight else "#eef5ff"
+
+            row_frame.config(bg=bg_color)
+            level_label.config(bg=bg_color)
+            value_label.config(bg=bg_color)
+
+    def update_stats(self, wins: int = 0, losses: int = 0, difficulty: Optional[int] = None):
         if wins == 0 and losses == 0:
             return
 
         self.win_count += wins
         self.loss_count += losses
+
+        if difficulty is None:
+            difficulty = self.active_game_difficulty or self.bot_difficulty
+
+        try:
+            difficulty_int = int(difficulty) if difficulty is not None else None
+        except (TypeError, ValueError):
+            difficulty_int = None
+
+        if difficulty_int is not None:
+            if difficulty_int not in self.stats_by_difficulty:
+                self.stats_by_difficulty[difficulty_int] = {"wins": 0, "losses": 0}
+
+            self.stats_by_difficulty[difficulty_int]['wins'] += wins
+            self.stats_by_difficulty[difficulty_int]['losses'] += losses
+
         self.refresh_stats_label()
+        self.refresh_difficulty_stats_panel()
         self.save_stats()
+        self.active_game_difficulty = None
 
     def build_word_indexes(self):
         """단어 검색 속도를 높이기 위해 색인 생성"""
@@ -354,6 +468,7 @@ class WordChainGame:
         self.bot_difficulty = rounded_value
         self.difficulty_label.config(text=str(rounded_value))
         self.update_turn_time_limit()
+        self.refresh_difficulty_stats_panel()
 
     def get_effective_difficulty(self) -> int:
         """기존 6~10 단계에 맞춘 보정 난이도."""
@@ -387,6 +502,7 @@ class WordChainGame:
     def start_game(self):
         """게임 시작"""
         self.reset_game()
+        self.active_game_difficulty = self.bot_difficulty
         self.add_system_message(f"{self.bot_difficulty}단계 봇과의 게임이 시작되었습니다! 아무 단어나 입력하세요.")
         self.status_label.config(text="당신의 차례입니다", fg="#27ae60")
         self.word_entry.config(state=tk.NORMAL)
@@ -397,6 +513,7 @@ class WordChainGame:
     def reset_game(self):
         """게임 초기화"""
         self.game_active = False
+        self.active_game_difficulty = None
         self.cancel_pending_bot_turn()
         self.invalidate_bot_turn()
         self.used_words.clear()
