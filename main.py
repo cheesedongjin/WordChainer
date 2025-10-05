@@ -403,6 +403,45 @@ class WordChainGame:
 
         return count
 
+    def get_possible_user_words(self, limit: int = 10) -> List[str]:
+        """현재 상태에서 사용자가 말할 수 있었던 단어 목록을 반환"""
+        if not self.current_last_char:
+            return []
+
+        allowed_chars = self.get_dueum_variants(self.current_last_char)
+        candidates: List[Tuple[str, int]] = []
+
+        for word, entries in self.words_data.items():
+            if word in self.used_words:
+                continue
+
+            if self.get_first_char(word) not in allowed_chars:
+                continue
+
+            max_euem = max(entry.get('이음 수', 0) for entry in entries)
+
+            # 게임 시작 후 4턴까지는 이음 수가 0인 단어 사용 불가 규칙 적용
+            if len(self.game_history) < 4 and max_euem == 0:
+                continue
+
+            candidates.append((word, max_euem))
+
+        candidates.sort(key=lambda item: (-item[1], item[0]))
+        return [word for word, _ in candidates[:limit]]
+
+    def show_possible_user_words(self, limit: int = 10):
+        """사용자가 말할 수 있었던 단어 예시를 시스템 메시지로 출력"""
+        suggestions = self.get_possible_user_words(limit)
+
+        if not suggestions:
+            self.add_system_message("사용자가 말할 수 있는 다른 단어가 없었습니다.")
+            return
+
+        suggestion_text = ", ".join(suggestions)
+        self.add_system_message(
+            f"사용자가 말할 수 있었던 단어 예시 (최대 {limit}개): {suggestion_text}"
+        )
+
     def apply_dueum_decrease(self, char):
         """해당 글자와 두음 변환 결과로 끝나는 모든 단어의 이음 수 -1"""
         if not char:
@@ -656,6 +695,7 @@ class WordChainGame:
         self.word_entry.config(state=tk.DISABLED)
         self.status_label.config(text="게임 종료 - 시간 초과! ⏰", fg="#c0392b")
         self.add_system_message("시간 초과! 봇의 승리입니다.")
+        self.show_possible_user_words()
 
     def forfeit_game(self):
         """사용자 기권 처리"""
@@ -667,6 +707,7 @@ class WordChainGame:
         self.word_entry.config(state=tk.DISABLED)
         self.status_label.config(text="게임 종료 - 당신의 패배", fg="#c0392b")
         self.add_system_message("당신이 기권했습니다. 봇의 승리!")
+        self.show_possible_user_words()
         self.reset_timer_display()
 
 if __name__ == "__main__":
