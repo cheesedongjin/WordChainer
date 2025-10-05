@@ -71,6 +71,8 @@ class WordChainGame:
         
         # 게임 데이터
         self.words_data: Dict = {}
+        self.words_by_first_char: Dict[str, List[str]] = {}
+        self.words_by_last_char_variants: Dict[str, Set[str]] = {}
         self.used_words: Set[str] = set()
         self.game_history: List[Tuple[str, str]] = []  # (speaker, word)
         self.current_last_char: str = ""
@@ -265,11 +267,31 @@ class WordChainGame:
         try:
             with open('words.json', 'r', encoding='utf-8') as f:
                 self.words_data = json.load(f)
+            self.build_word_indexes()
             self.add_system_message(f"✓ 사전 로드 완료: {len(self.words_data)}개 단어")
         except FileNotFoundError:
             self.show_warning_message("words.json 파일을 찾을 수 없습니다.")
         except json.JSONDecodeError:
             self.show_warning_message("JSON 파일 형식이 올바르지 않습니다.")
+
+    def build_word_indexes(self):
+        """단어 검색 속도를 높이기 위해 색인 생성"""
+        words_by_first_char: Dict[str, List[str]] = {}
+        words_by_last_char_variants: Dict[str, Set[str]] = {}
+
+        for word in self.words_data.keys():
+            if not word:
+                continue
+
+            first_char = self.get_first_char(word)
+            words_by_first_char.setdefault(first_char, []).append(word)
+
+            last_char = self.get_last_char(word)
+            for variant in self.get_dueum_variants(last_char):
+                words_by_last_char_variants.setdefault(variant, set()).add(word)
+
+        self.words_by_first_char = words_by_first_char
+        self.words_by_last_char_variants = words_by_last_char_variants
     
     def on_difficulty_change(self, value):
         """난이도 변경 처리"""
@@ -340,6 +362,7 @@ class WordChainGame:
         try:
             with open('words.json', 'r', encoding='utf-8') as f:
                 self.words_data = json.load(f)
+            self.build_word_indexes()
         except:
             pass
     
@@ -431,17 +454,16 @@ class WordChainGame:
             return 0
 
         allowed_chars = self.get_dueum_variants(last_char)
-        count = 0
         used = self.used_words if used_words is None else used_words
+        available_words: Set[str] = set()
 
-        for word in self.words_data.keys():
-            if word == exclude_word or word in used:
-                continue
+        for char in allowed_chars:
+            for word in self.words_by_first_char.get(char, []):
+                if word == exclude_word or word in used:
+                    continue
+                available_words.add(word)
 
-            if self.get_first_char(word) in allowed_chars:
-                count += 1
-
-        return count
+        return len(available_words)
 
     def get_possible_user_words(self, limit: int = 10) -> List[str]:
         """현재 상태에서 사용자가 말할 수 있었던 단어 목록을 반환"""
@@ -450,21 +472,22 @@ class WordChainGame:
 
         allowed_chars = self.get_dueum_variants(self.current_last_char)
         candidates: List[Tuple[str, int]] = []
+        seen: Set[str] = set()
 
-        for word, entries in self.words_data.items():
-            if word in self.used_words:
-                continue
+        for char in allowed_chars:
+            for word in self.words_by_first_char.get(char, []):
+                if word in self.used_words or word in seen:
+                    continue
+                seen.add(word)
 
-            if self.get_first_char(word) not in allowed_chars:
-                continue
+                entries = self.words_data[word]
+                max_euem = max(entry.get('이음 수', 0) for entry in entries)
 
-            max_euem = max(entry.get('이음 수', 0) for entry in entries)
+                # 게임 시작 후 4턴까지는 이음 수가 0인 단어 사용 불가 규칙 적용
+                if len(self.game_history) < 4 and max_euem == 0:
+                    continue
 
-            # 게임 시작 후 4턴까지는 이음 수가 0인 단어 사용 불가 규칙 적용
-            if len(self.game_history) < 4 and max_euem == 0:
-                continue
-
-            candidates.append((word, max_euem))
+                candidates.append((word, max_euem))
 
         candidates.sort(key=lambda item: (-item[1], item[0]))
         return [word for word, _ in candidates[:limit]]
@@ -487,12 +510,11 @@ class WordChainGame:
         if not char:
             return
 
-        for word, entries in self.words_data.items():
-            last_char = self.get_last_char(word)
-            if char in self.get_dueum_variants(last_char):
-                for entry in entries:
-                    if '이음 수' in entry:
-                        entry['이음 수'] = max(0, entry['이음 수'] - 1)
+        for word in self.words_by_last_char_variants.get(char, set()):
+            entries = self.words_data.get(word, [])
+            for entry in entries:
+                if '이음 수' in entry:
+                    entry['이음 수'] = max(0, entry['이음 수'] - 1)
 
     def cancel_pending_bot_turn(self):
         """대기 중인 봇 실행 예약 취소"""
