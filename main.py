@@ -76,7 +76,7 @@ class WordChainGame:
         self.used_words: Set[str] = set()
         self.game_history: List[Tuple[str, str]] = []  # (speaker, word)
         self.current_last_char: str = ""
-        self.bot_difficulty: int = 5  # 1-10
+        self.bot_difficulty: int = 8  # 1-10, 초기 슬라이더 값(3)에 대응
 
         self.word_tag_counter = 0
         self.base_turn_time_limit = 30
@@ -136,19 +136,20 @@ class WordChainGame:
         tk.Label(difficulty_frame, text="봇 난이도:", font=("맑은 고딕", 18),
                 bg="white").pack(side=tk.LEFT, padx=10, pady=10)
         
-        self.difficulty_var = tk.IntVar(value=5)
-        difficulty_scale = ttk.Scale(difficulty_frame, from_=1, to=5, 
-                                    variable=self.difficulty_var,
-                                    orient=tk.HORIZONTAL, length=200)
-        difficulty_scale.set(3)
+        self.difficulty_var = tk.IntVar(value=3)
+        difficulty_scale = ttk.Scale(difficulty_frame, from_=1, to=5,
+                                     variable=self.difficulty_var,
+                                     orient=tk.HORIZONTAL, length=200)
+        difficulty_scale.set(self.difficulty_var.get())
         difficulty_scale.pack(side=tk.LEFT, padx=10, pady=10)
         
-        self.difficulty_label = tk.Label(difficulty_frame, text="3", 
+        self.difficulty_label = tk.Label(difficulty_frame, text="3",
                                          font=("맑은 고딕", 18, "bold"),
                                          bg="white", fg="#4a90e2")
         self.difficulty_label.pack(side=tk.LEFT, padx=10)
-        
+
         difficulty_scale.config(command=self.on_difficulty_change)
+        self.on_difficulty_change(self.difficulty_var.get())
         
         # 게임 상태
         status_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
@@ -288,8 +289,12 @@ class WordChainGame:
     
     def on_difficulty_change(self, value):
         """난이도 변경 처리"""
-        self.bot_difficulty = int(float(value) + 5)
-        self.difficulty_label.config(text=str(self.bot_difficulty - 5))
+        rounded_value = int(round(float(value)))
+        if rounded_value != self.difficulty_var.get():
+            self.difficulty_var.set(rounded_value)
+
+        self.bot_difficulty = rounded_value + 5
+        self.difficulty_label.config(text=str(rounded_value))
         self.update_turn_time_limit()
 
     def update_turn_time_limit(self):
