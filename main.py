@@ -491,8 +491,15 @@ class WordChainGame:
         if last_euem < 1000:
             difficulty_factor = self.bot_difficulty / 10.0
             euem_factor = last_euem / 1000.0
-            base_prob = 0.3 + (0.7 * difficulty_factor) + (euem_factor * 0.3)
-            base_prob = min(1.0, base_prob)
+
+            # 높은 난이도에서는 낮은 이음 수로 인한 감소폭을 크게 줄인다.
+            base_skill = 0.35 + (0.65 * difficulty_factor)
+            penalty_scale = (1 - difficulty_factor) ** 3
+            low_euem_penalty = (1 - euem_factor) * 0.4 * penalty_scale
+            euem_bonus = euem_factor * 0.25 * (1 - penalty_scale)
+
+            base_prob = base_skill - low_euem_penalty + euem_bonus
+            base_prob = max(0.1, min(1.0, base_prob))
         
         # 확률에 따라 실패할 수도 있음
         if random.random() > base_prob:
