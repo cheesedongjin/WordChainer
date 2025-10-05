@@ -544,7 +544,7 @@ class WordChainGame:
             return
 
         if word not in self.words_data:
-            self.show_warning_message(f"{word}(은)는 잘못된 단어입니다: 사전에 없는 단어입니다.")
+            self.show_warning_message(f"{word}(은)는 잘못된 단어입니다: 사전에 없는 단어이거나 명사가 아닙니다.")
             return
 
         max_euem = max((entry.get('이음 수', 0)
