@@ -431,6 +431,14 @@ class WordChainGame:
             messagebox.showwarning("경고", "사전에 없는 단어입니다.")
             return
 
+        max_euem = max((entry.get('이음 수', 0)
+                         for entry in self.words_data[word]), default=0)
+        if len(self.game_history) < 4 and max_euem == 0:
+            messagebox.showwarning(
+                "경고",
+                "게임 시작 후 4턴까지는 이음 수가 0인 단어를 사용할 수 없습니다.")
+            return
+
         if word in self.used_words:
             messagebox.showwarning("경고", "이미 사용된 단어입니다.")
             return
@@ -484,6 +492,8 @@ class WordChainGame:
 
             # 이음 수 확인
             max_euem = max(entry.get('이음 수', 0) for entry in entries)
+            if len(self.game_history) < 4 and max_euem == 0:
+                continue
 
             # 난이도에 따른 필터링
             # 높은 난이도일수록 매우 낮은 이음 수(0에 가까운 값)도 허용
