@@ -76,7 +76,8 @@ class WordChainGame:
         self.bot_difficulty: int = 5  # 1-10
 
         self.word_tag_counter = 0
-        self.turn_time_limit = 30
+        self.base_turn_time_limit = 30
+        self.turn_time_limit = self.base_turn_time_limit
         self.timer_seconds_remaining = 0
         self.timer_after_id: Optional[str] = None
         self.game_active = False
@@ -271,7 +272,33 @@ class WordChainGame:
         """난이도 변경 처리"""
         self.bot_difficulty = int(float(value) + 5)
         self.difficulty_label.config(text=str(self.bot_difficulty - 5))
-    
+        self.update_turn_time_limit()
+
+    def update_turn_time_limit(self):
+        """난이도에 따른 생각 시간 조정"""
+        extra_time = 20 if self.bot_difficulty >= 10 else 0
+        new_limit = self.base_turn_time_limit + extra_time
+
+        if new_limit == self.turn_time_limit:
+            return
+
+        old_limit = self.turn_time_limit
+        self.turn_time_limit = new_limit
+
+        if self.timer_seconds_remaining > 0:
+            if new_limit > old_limit:
+                self.timer_seconds_remaining = min(
+                    new_limit,
+                    self.timer_seconds_remaining + (new_limit - old_limit)
+                )
+            else:
+                self.timer_seconds_remaining = min(self.timer_seconds_remaining, new_limit)
+            self.timer_progress.config(maximum=new_limit)
+            self.timer_progress['value'] = min(self.timer_seconds_remaining, new_limit)
+            self.update_timer_display()
+        else:
+            self.timer_progress.config(maximum=new_limit)
+
     def start_game(self):
         """게임 시작"""
         self.reset_game()
@@ -645,6 +672,7 @@ class WordChainGame:
     def start_timer(self):
         """사용자 턴 타이머 시작"""
         self.stop_timer()
+        self.update_turn_time_limit()
         self.timer_seconds_remaining = self.turn_time_limit
         self.timer_progress.config(maximum=self.turn_time_limit)
         self.timer_progress['value'] = self.turn_time_limit
