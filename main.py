@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, scrolledtext
 import json
 import random
 import threading
@@ -267,9 +267,9 @@ class WordChainGame:
                 self.words_data = json.load(f)
             self.add_system_message(f"✓ 사전 로드 완료: {len(self.words_data)}개 단어")
         except FileNotFoundError:
-            messagebox.showerror("오류", "words.json 파일을 찾을 수 없습니다.")
+            self.show_warning_message("words.json 파일을 찾을 수 없습니다.")
         except json.JSONDecodeError:
-            messagebox.showerror("오류", "JSON 파일 형식이 올바르지 않습니다.")
+            self.show_warning_message("JSON 파일 형식이 올바르지 않습니다.")
     
     def on_difficulty_change(self, value):
         """난이도 변경 처리"""
@@ -349,6 +349,11 @@ class WordChainGame:
         self.chat_text.insert(tk.END, f"[시스템] {message}\n", "system")
         self.chat_text.see(tk.END)
         self.chat_text.config(state=tk.DISABLED)
+
+    def show_warning_message(self, message: str):
+        """경고 메시지를 화면에 출력"""
+        self.add_system_message(f"⚠️ {message}")
+        self.status_label.config(text=message, fg="#c0392b")
     
     def add_word_message(self, speaker, word):
         """단어 메시지 추가 (클릭 가능)"""
@@ -513,19 +518,18 @@ class WordChainGame:
         
         # 단어 검증
         if word not in self.words_data:
-            messagebox.showwarning("경고", "사전에 없는 단어입니다.")
+            self.show_warning_message("사전에 없는 단어입니다.")
             return
 
         max_euem = max((entry.get('이음 수', 0)
                          for entry in self.words_data[word]), default=0)
         if len(self.game_history) < 4 and max_euem == 0:
-            messagebox.showwarning(
-                "경고",
+            self.show_warning_message(
                 "게임 시작 후 4턴까지는 이음 수가 0인 단어를 사용할 수 없습니다.")
             return
 
         if word in self.used_words:
-            messagebox.showwarning("경고", "이미 사용된 단어입니다.")
+            self.show_warning_message("이미 사용된 단어입니다.")
             return
 
         first_char = self.get_first_char(word)
@@ -534,8 +538,7 @@ class WordChainGame:
         if self.current_last_char:
             allowed_chars = self.get_dueum_variants(self.current_last_char)
             if first_char not in allowed_chars:
-                messagebox.showwarning(
-                    "경고",
+                self.show_warning_message(
                     f"'{self.current_last_char}'(으)로 시작하는 단어를 입력하세요.")
                 return
         
