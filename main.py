@@ -76,7 +76,7 @@ class WordChainGame:
         self.used_words: Set[str] = set()
         self.game_history: List[Tuple[str, str]] = []  # (speaker, word)
         self.current_last_char: str = ""
-        self.bot_difficulty: int = 8  # 1-10, 초기 슬라이더 값(3)에 대응
+        self.bot_difficulty: int = 3  # 1-5, 초기 슬라이더 값(3)에 대응
 
         self.word_tag_counter = 0
         self.base_turn_time_limit = 30
@@ -293,13 +293,17 @@ class WordChainGame:
         if rounded_value != self.difficulty_var.get():
             self.difficulty_var.set(rounded_value)
 
-        self.bot_difficulty = rounded_value + 5
+        self.bot_difficulty = rounded_value
         self.difficulty_label.config(text=str(rounded_value))
         self.update_turn_time_limit()
 
+    def get_effective_difficulty(self) -> int:
+        """기존 6~10 단계에 맞춘 보정 난이도."""
+        return self.bot_difficulty + 5
+
     def update_turn_time_limit(self):
         """난이도에 따른 생각 시간 조정"""
-        extra_time = 0 if self.bot_difficulty >= 10 else 0
+        extra_time = 0 if self.get_effective_difficulty() >= 10 else 0
         new_limit = self.base_turn_time_limit + extra_time
 
         if new_limit == self.turn_time_limit:
@@ -674,7 +678,7 @@ class WordChainGame:
             if len(game_history_snapshot) < 4 and max_euem == 0:
                 continue
 
-            min_threshold = max(0, 3200 - (self.bot_difficulty * 400))
+            min_threshold = max(0, 3200 - (self.get_effective_difficulty() * 400))
             if max_euem < min_threshold:
                 continue
 
@@ -703,7 +707,7 @@ class WordChainGame:
 
         base_prob = 1.0
         if last_euem < 1000:
-            difficulty_factor = self.bot_difficulty / 10.0
+            difficulty_factor = self.get_effective_difficulty() / 10.0
             euem_factor = last_euem / 1000.0
 
             base_skill = 0.35 + (0.65 * difficulty_factor)
@@ -715,7 +719,7 @@ class WordChainGame:
             base_prob = max(0.1, min(1.0, base_prob))
 
         should_fail = False
-        if self.bot_difficulty < 10:
+        if self.get_effective_difficulty() < 10:
             should_fail = random.random() > base_prob
 
         if should_fail:
@@ -723,9 +727,9 @@ class WordChainGame:
 
         min_euem = min(euem for _, euem in possible_words)
         max_euem_val = max(euem for _, euem in possible_words)
-        difficulty_factor = self.bot_difficulty / 10.0
+        difficulty_factor = self.get_effective_difficulty() / 10.0
 
-        if self.bot_difficulty >= 10:
+        if self.get_effective_difficulty() >= 10:
             min_candidates = [
                 word for word, euem in possible_words if euem == min_euem
             ]
