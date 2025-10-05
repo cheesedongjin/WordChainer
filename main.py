@@ -127,18 +127,18 @@ class WordChainGame:
         difficulty_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
         difficulty_frame.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(difficulty_frame, text="봇 난이도:", font=("맑은 고딕", 11),
+        tk.Label(difficulty_frame, text="봇 난이도:", font=("맑은 고딕", 18),
                 bg="white").pack(side=tk.LEFT, padx=10, pady=10)
         
         self.difficulty_var = tk.IntVar(value=5)
-        difficulty_scale = ttk.Scale(difficulty_frame, from_=1, to=10, 
+        difficulty_scale = ttk.Scale(difficulty_frame, from_=1, to=5, 
                                     variable=self.difficulty_var,
                                     orient=tk.HORIZONTAL, length=200,
                                     command=self.on_difficulty_change)
         difficulty_scale.pack(side=tk.LEFT, padx=10, pady=10)
         
         self.difficulty_label = tk.Label(difficulty_frame, text="5", 
-                                         font=("맑은 고딕", 11, "bold"),
+                                         font=("맑은 고딕", 18, "bold"),
                                          bg="white", fg="#4a90e2")
         self.difficulty_label.pack(side=tk.LEFT, padx=10)
         
@@ -148,7 +148,7 @@ class WordChainGame:
         
         self.status_label = tk.Label(status_frame,
                                      text="'시작' 버튼을 눌러 게임을 시작하세요",
-                                     font=("맑은 고딕", 11),
+                                     font=("맑은 고딕", 18),
                                      bg="white", fg="#666", wraplength=500)
         self.status_label.pack(pady=15, padx=10)
 
@@ -157,7 +157,7 @@ class WordChainGame:
 
         self.timer_label = tk.Label(timer_container,
                                     text="남은 시간: --",
-                                    font=("맑은 고딕", 10),
+                                    font=("맑은 고딕", 16),
                                     bg="white", fg="#c0392b")
         self.timer_label.pack(anchor=tk.W)
 
@@ -171,11 +171,11 @@ class WordChainGame:
         chat_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
         chat_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
-        tk.Label(chat_frame, text="게임 진행", font=("맑은 고딕", 12, "bold"),
+        tk.Label(chat_frame, text="게임 진행", font=("맑은 고딕", 20, "bold"),
                 bg="white").pack(anchor=tk.W, padx=10, pady=5)
         
         self.chat_text = scrolledtext.ScrolledText(chat_frame, 
-                                                   font=("맑은 고딕", 10),
+                                                   font=("맑은 고딕", 16),
                                                    bg="#fafafa", 
                                                    relief=tk.FLAT,
                                                    wrap=tk.WORD,
@@ -183,9 +183,9 @@ class WordChainGame:
         self.chat_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         
         # 태그 설정
-        self.chat_text.tag_config("user", foreground="#2c5aa0", font=("맑은 고딕", 10, "bold"))
-        self.chat_text.tag_config("bot", foreground="#e74c3c", font=("맑은 고딕", 10, "bold"))
-        self.chat_text.tag_config("system", foreground="#7f8c8d", font=("맑은 고딕", 9, "italic"))
+        self.chat_text.tag_config("user", foreground="#2c5aa0", font=("맑은 고딕", 16, "bold"))
+        self.chat_text.tag_config("bot", foreground="#e74c3c", font=("맑은 고딕", 16, "bold"))
+        self.chat_text.tag_config("system", foreground="#7f8c8d", font=("맑은 고딕", 14, "italic"))
         self.chat_text.tag_config("word_link", foreground="#4a90e2", underline=True)
         self.chat_text.tag_bind("word_link", "<Enter>",
                                lambda e: self.chat_text.config(cursor="hand2"))
@@ -196,14 +196,14 @@ class WordChainGame:
         input_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
         input_frame.pack(fill=tk.X)
         
-        self.word_entry = tk.Entry(input_frame, font=("맑은 고딕", 12),
+        self.word_entry = tk.Entry(input_frame, font=("맑은 고딕", 20),
                                    relief=tk.FLAT, bg="#fafafa")
         self.word_entry.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, 
                             padx=10, pady=10)
         self.word_entry.bind('<Return>', lambda e: self.submit_word())
         
         submit_btn = tk.Button(input_frame, text="제출", 
-                              font=("맑은 고딕", 11, "bold"),
+                              font=("맑은 고딕", 18, "bold"),
                               bg="#4a90e2", fg="white",
                               relief=tk.FLAT, padx=20,
                               command=self.submit_word)
@@ -216,11 +216,11 @@ class WordChainGame:
         right_panel.pack_propagate(False)
         
         tk.Label(right_panel, text="단어 정보", 
-                font=("맑은 고딕", 12, "bold"),
+                font=("맑은 고딕", 20, "bold"),
                 bg="white").pack(anchor=tk.W, padx=10, pady=10)
         
         self.info_text = scrolledtext.ScrolledText(right_panel,
-                                                   font=("맑은 고딕", 9),
+                                                   font=("맑은 고딕", 14),
                                                    bg="#fafafa",
                                                    relief=tk.FLAT,
                                                    wrap=tk.WORD,
@@ -232,21 +232,21 @@ class WordChainGame:
         button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
         
         start_btn = tk.Button(button_frame, text="게임 시작", 
-                             font=("맑은 고딕", 11, "bold"),
+                             font=("맑은 고딕", 18, "bold"),
                              bg="#27ae60", fg="white",
                              relief=tk.FLAT, padx=30, pady=10,
                              command=self.start_game)
         start_btn.pack(side=tk.LEFT, padx=5)
         
         reset_btn = tk.Button(button_frame, text="다시 시작",
-                             font=("맑은 고딕", 11, "bold"),
+                             font=("맑은 고딕", 18, "bold"),
                              bg="#e67e22", fg="white",
                              relief=tk.FLAT, padx=30, pady=10,
                              command=self.reset_game)
         reset_btn.pack(side=tk.LEFT, padx=5)
 
         forfeit_btn = tk.Button(button_frame, text="포기",
-                                font=("맑은 고딕", 11, "bold"),
+                                font=("맑은 고딕", 18, "bold"),
                                 bg="#c0392b", fg="white",
                                 relief=tk.FLAT, padx=30, pady=10,
                                 command=self.forfeit_game)
@@ -265,7 +265,7 @@ class WordChainGame:
     
     def on_difficulty_change(self, value):
         """난이도 변경 처리"""
-        self.bot_difficulty = int(float(value))
+        self.bot_difficulty = int(float(value) + 5)
         self.difficulty_label.config(text=str(self.bot_difficulty))
     
     def start_game(self):
@@ -352,8 +352,6 @@ class WordChainGame:
                 
                 if '전문 분야' in entry:
                     self.info_text.insert(tk.END, f"분야: {entry['전문 분야']}\n")
-                
-                self.info_text.insert(tk.END, f"이음 수: {entry.get('이음 수', 0)}\n")
                 
                 if '용례' in entry and entry['용례']:
                     self.info_text.insert(tk.END, f"\n용례:\n{entry['용례']}\n")
