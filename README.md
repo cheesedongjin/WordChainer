@@ -1,5 +1,8 @@
 # WordChainer
 
+[English README](README.en.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ## 소개
 WordChainer는 한국어 끝말잇기를 인공지능 봇과 함께 즐길 수 있는 프로젝트입니다. Tkinter 기반의 데스크톱 앱과 GitHub Pages로 배포된 웹 버전을 동시에 제공하여, 사용자는 어디서든 간편하게 게임을 시작할 수 있습니다. [웹 버전 바로가기](https://cheesedongjin.github.io/WordChainer/)
 
