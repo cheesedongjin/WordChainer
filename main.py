@@ -99,7 +99,6 @@ class WordChainGame:
         self.load_stats()
 
         self.setup_ui()
-        self.refresh_stats_label()
         self.refresh_difficulty_stats_panel()
         self.load_words()
 
@@ -197,12 +196,6 @@ class WordChainGame:
                                               value=0,
                                               mode='determinate')
         self.timer_progress.pack(fill=tk.X, pady=(5, 0))
-
-        self.stats_label = tk.Label(status_frame,
-                                    text=self.get_stats_text(),
-                                    font=("맑은 고딕", 16, "bold"),
-                                    bg="white", fg="#2c3e50")
-        self.stats_label.pack(pady=(0, 10))
         
         # 채팅 영역
         chat_frame = tk.Frame(left_panel, bg="white", relief=tk.RAISED, bd=1)
@@ -388,13 +381,6 @@ class WordChainGame:
         except OSError:
             pass
 
-    def get_stats_text(self) -> str:
-        return f"전적 - 승리: {self.win_count}  패배: {self.loss_count}"
-
-    def refresh_stats_label(self):
-        if hasattr(self, 'stats_label'):
-            self.stats_label.config(text=self.get_stats_text())
-
     def refresh_difficulty_stats_panel(self):
         rows = getattr(self, 'difficulty_stats_rows', None)
         if not rows:
@@ -435,7 +421,6 @@ class WordChainGame:
             self.stats_by_difficulty[difficulty_int]['wins'] += wins
             self.stats_by_difficulty[difficulty_int]['losses'] += losses
 
-        self.refresh_stats_label()
         self.refresh_difficulty_stats_panel()
         self.save_stats()
         self.active_game_difficulty = None
