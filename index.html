@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>끝말잇기 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            background-color: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            background-color: #4a90e2;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        #main-container {
+            display: flex;
+            flex: 1;
+            padding: 20px;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        #left-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        #right-panel {
+            width: 320px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        #difficulty-frame {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #difficulty-frame label {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #difficulty-slider {
+            flex: 1;
+            max-width: 200px;
+        }
+
+        #difficulty-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4a90e2;
+            min-width: 30px;
+        }
+
+        #status-frame {
+            text-align: center;
+        }
+
+        #status-label {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        #timer-container {
+            margin-top: 10px;
+        }
+
+        #timer-label {
+            font-size: 16px;
+            color: #c0392b;
+            margin-bottom: 5px;
+        }
+
+        #timer-progress {
+            width: 100%;
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #timer-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #f39c12, #e74c3c);
+            transition: width 0.3s ease;
+        }
+
+        #chat-frame {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        #chat-frame h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        #chat-text {
+            flex: 1;
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .chat-user {
+            color: #2c5aa0;
+            font-weight: bold;
+        }
+
+        .chat-bot {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .chat-system {
+            color: #7f8c8d;
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        .word-link {
+            color: #4a90e2;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .word-link:hover {
+            color: #2c5aa0;
+        }
+
+        #input-frame {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #word-entry {
+            flex: 1;
+            font-size: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+
+        #word-entry:disabled {
+            background: #e0e0e0;
+            cursor: not-allowed;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #submit-btn {
+            background: #4a90e2;
+            color: white;
+        }
+
+        #start-btn {
+            background: #27ae60;
+            color: white;
+        }
+
+        #forfeit-btn {
+            background: #c0392b;
+            color: white;
+        }
+
+        #button-frame {
+            display: flex;
+            gap: 10px;
+            padding: 0 20px 20px;
+        }
+
+        #stats-panel {
+            background: #eef5ff;
+            border: 1px solid #d0e4ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px;
+        }
+
+        #stats-panel h4 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            margin: 2px 0;
+            border-radius: 4px;
+            background: #eef5ff;
+        }
+
+        .stats-row.active {
+            background: #d6eaff;
+        }
+
+        .stats-level {
+            font-weight: bold;
+            font-size: 13px;
+            color: #2c3e50;
+        }
+
+        .stats-value {
+            font-size: 12px;
+            color: #2c3e50;
+        }
+
+        #info-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        #info-section h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        #info-text {
+            flex: 1;
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">🎮 끝말잇기 게임</div>
+
+    <div id="main-container">
+        <div id="left-panel">
+            <div class="panel" id="difficulty-frame">
+                <label>봇 난이도:</label>
+                <input type="range" id="difficulty-slider" min="1" max="5" value="3" step="1">
+                <span id="difficulty-value">3</span>
+            </div>
+
+            <div class="panel" id="status-frame">
+                <div id="status-label">'시작' 버튼을 눌러 게임을 시작하세요</div>
+                <div id="timer-container">
+                    <div id="timer-label">남은 시간: --</div>
+                    <div id="timer-progress">
+                        <div id="timer-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" id="chat-frame">
+                <h3>게임 진행</h3>
+                <div id="chat-text"></div>
+            </div>
+
+            <div class="panel" id="input-frame">
+                <input type="text" id="word-entry" placeholder="단어를 입력하세요" disabled>
+                <button id="submit-btn">제출</button>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <div id="stats-panel">
+                <h4>난이도별 전적</h4>
+                <div id="stats-rows"></div>
+            </div>
+            <hr>
+            <div id="info-section">
+                <h3>단어 정보</h3>
+                <div id="info-text"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="button-frame">
+        <button id="start-btn">게임 시작</button>
+        <button id="forfeit-btn">포기</button>
+    </div>
+
+    <script>
+        // 한글 유니코드 처리
+        const HANGUL_BASE = 0xAC00;
+        const CHOS = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+        const JUNGS = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ'];
+        const JONGS = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+        const CHO_N = 2;
+        const CHO_R = 5;
+        const CHO_YIEUNG = 11;
+        const IY_JUNG_IDX = new Set([20, 2, 6, 12, 17, 7, 16, 3, 19]);
+
+        function isHangulSyllable(ch) {
+            if (!ch) return false;
+            const code = ch.charCodeAt(0);
+            return code >= 0xAC00 && code <= 0xD7A3;
+        }
+
+        function decompose(ch) {
+            if (!isHangulSyllable(ch)) return null;
+            const code = ch.charCodeAt(0) - HANGUL_BASE;
+            const cho = Math.floor(code / 588);
+            const jung = Math.floor((code % 588) / 28);
+            const jong = code % 28;
+            return { cho, jung, jong };
+        }
+
+        function compose(cho, jung, jong) {
+            return String.fromCharCode(HANGUL_BASE + cho * 588 + jung * 28 + jong);
+        }
+
+        function dueumTransform(syll) {
+            const decomp = decompose(syll);
+            if (!decomp) return null;
+
+            const { cho, jung, jong } = decomp;
+            if (cho === CHO_N) {
+                if (IY_JUNG_IDX.has(jung)) {
+                    return compose(CHO_YIEUNG, jung, jong);
+                }
+                return null;
+            }
+
+            if (cho === CHO_R) {
+                if (IY_JUNG_IDX.has(jung)) {
+                    return compose(CHO_YIEUNG, jung, jong);
+                }
+                return compose(CHO_N, jung, jong);
+            }
+
+            return null;
+        }
+
+        function getDueumVariants(syllable) {
+            if (!syllable) return new Set();
+            const variants = new Set([syllable]);
+            const transformed = dueumTransform(syllable);
+            if (transformed) variants.add(transformed);
+            return variants;
+        }
+
+        // 게임 상태
+        const game = {
+            wordsData: {},
+            wordsByFirstChar: {},
+            wordsByLastCharVariants: {},
+            usedWords: new Set(),
+            gameHistory: [],
+            currentLastChar: '',
+            botDifficulty: 3,
+            baseTurnTimeLimit: 30,
+            turnTimeLimit: 30,
+            timerSecondsRemaining: 0,
+            timerIntervalId: null,
+            pendingBotTimeoutId: null,
+            botTurnSequence: 0,
+            gameActive: false,
+            statsFile: 'game_stats',
+            winCount: 0,
+            lossCount: 0,
+            statsByDifficulty: {},
+            activeGameDifficulty: null
+        };
+
+        // 난이도별 전적 초기화
+        for (let i = 1; i <= 5; i++) {
+            game.statsByDifficulty[i] = { wins: 0, losses: 0 };
+        }
+
+        // DOM 요소
+        const els = {
+            difficultySlider: document.getElementById('difficulty-slider'),
+            difficultyValue: document.getElementById('difficulty-value'),
+            statusLabel: document.getElementById('status-label'),
+            timerLabel: document.getElementById('timer-label'),
+            timerBar: document.getElementById('timer-bar'),
+            chatText: document.getElementById('chat-text'),
+            wordEntry: document.getElementById('word-entry'),
+            submitBtn: document.getElementById('submit-btn'),
+            startBtn: document.getElementById('start-btn'),
+            forfeitBtn: document.getElementById('forfeit-btn'),
+            infoText: document.getElementById('info-text'),
+            statsRows: document.getElementById('stats-rows')
+        };
+
+        // 초기화
+        function init() {
+            loadStats();
+            createStatsRows();
+            refreshDifficultyStatsPanel();
+            loadWords();
+            
+            els.difficultySlider.addEventListener('input', onDifficultyChange);
+            els.submitBtn.addEventListener('click', submitWord);
+            els.wordEntry.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') submitWord();
+            });
+            els.startBtn.addEventListener('click', startGame);
+            els.forfeitBtn.addEventListener('click', forfeitGame);
+        }
+
+        function createStatsRows() {
+            els.statsRows.innerHTML = '';
+            for (let level = 1; level <= 5; level++) {
+                const row = document.createElement('div');
+                row.className = 'stats-row';
+                row.dataset.level = level;
+                
+                const levelLabel = document.createElement('span');
+                levelLabel.className = 'stats-level';
+                levelLabel.textContent = `${level}단계`;
+                
+                const valueLabel = document.createElement('span');
+                valueLabel.className = 'stats-value';
+                valueLabel.textContent = '승리 0 | 패배 0';
+                
+                row.appendChild(levelLabel);
+                row.appendChild(valueLabel);
+                els.statsRows.appendChild(row);
+            }
+        }
+
+        function refreshDifficultyStatsPanel() {
+            const rows = els.statsRows.querySelectorAll('.stats-row');
+            rows.forEach(row => {
+                const level = parseInt(row.dataset.level);
+                const stats = game.statsByDifficulty[level] || { wins: 0, losses: 0 };
+                const valueLabel = row.querySelector('.stats-value');
+                valueLabel.textContent = `승리 ${stats.wins} | 패배 ${stats.losses}`;
+                
+                if (level === game.botDifficulty) {
+                    row.classList.add('active');
+                } else {
+                    row.classList.remove('active');
+                }
+            });
+        }
+
+        function loadStats() {
+            try {
+                const data = JSON.parse(localStorage.getItem(game.statsFile) || '{}');
+                game.winCount = parseInt(data.wins || 0);
+                game.lossCount = parseInt(data.losses || 0);
+                
+                const byDifficulty = data.by_difficulty || {};
+                for (let level = 1; level <= 5; level++) {
+                    const stats = byDifficulty[level] || { wins: 0, losses: 0 };
+                    game.statsByDifficulty[level] = {
+                        wins: parseInt(stats.wins || 0),
+                        losses: parseInt(stats.losses || 0)
+                    };
+                }
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+
+        function saveStats() {
+            try {
+                const data = {
+                    wins: game.winCount,
+                    losses: game.lossCount,
+                    by_difficulty: {}
+                };
+                
+                for (let level = 1; level <= 5; level++) {
+                    data.by_difficulty[level] = game.statsByDifficulty[level];
+                }
+                
+                localStorage.setItem(game.statsFile, JSON.stringify(data));
+            } catch (e) {
+                console.error('Failed to save stats:', e);
+            }
+        }
+
+        function updateStats(wins = 0, losses = 0, difficulty = null) {
+            if (wins === 0 && losses === 0) return;
+            
+            game.winCount += wins;
+            game.lossCount += losses;
+            
+            const diff = difficulty || game.activeGameDifficulty || game.botDifficulty;
+            if (diff >= 1 && diff <= 5) {
+                game.statsByDifficulty[diff].wins += wins;
+                game.statsByDifficulty[diff].losses += losses;
+            }
+            
+            refreshDifficultyStatsPanel();
+            saveStats();
+            game.activeGameDifficulty = null;
+        }
+
+        async function loadWords() {
+            try {
+                const response = await fetch('words.json');
+                game.wordsData = await response.json();
+                buildWordIndexes();
+                addSystemMessage(`✓ 사전 로드 완료: ${Object.keys(game.wordsData).length}개 단어`);
+            } catch (e) {
+                showWarningMessage('words.json 파일을 찾을 수 없습니다.');
+            }
+        }
+
+        function buildWordIndexes() {
+            game.wordsByFirstChar = {};
+            game.wordsByLastCharVariants = {};
+            
+            for (const word in game.wordsData) {
+                const firstChar = word[0];
+                if (!game.wordsByFirstChar[firstChar]) {
+                    game.wordsByFirstChar[firstChar] = [];
+                }
+                game.wordsByFirstChar[firstChar].push(word);
+                
+                const lastChar = word[word.length - 1];
+                const variants = getDueumVariants(lastChar);
+                variants.forEach(variant => {
+                    if (!game.wordsByLastCharVariants[variant]) {
+                        game.wordsByLastCharVariants[variant] = new Set();
+                    }
+                    game.wordsByLastCharVariants[variant].add(word);
+                });
+            }
+        }
+
+        function onDifficultyChange() {
+            const value = parseInt(els.difficultySlider.value);
+            game.botDifficulty = value;
+            els.difficultyValue.textContent = value;
+            updateTurnTimeLimit();
+            refreshDifficultyStatsPanel();
+        }
+
+        function getEffectiveDifficulty() {
+            return game.botDifficulty + 5;
+        }
+
+        function updateTurnTimeLimit() {
+            const extraTime = getEffectiveDifficulty() >= 10 ? 0 : 0;
+            game.turnTimeLimit = game.baseTurnTimeLimit + extraTime;
+        }
+
+        function startGame() {
+            resetGame();
+            game.activeGameDifficulty = game.botDifficulty;
+            addSystemMessage(`${game.botDifficulty}단계 봇과의 게임이 시작되었습니다! 아무 단어나 입력하세요.`);
+            els.statusLabel.textContent = '당신의 차례입니다';
+            els.statusLabel.style.color = '#27ae60';
+            els.wordEntry.disabled = false;
+            els.wordEntry.focus();
+            game.gameActive = true;
+            startTimer();
+        }
+
+        function resetGame() {
+            game.gameActive = false;
+            game.activeGameDifficulty = null;
+            cancelPendingBotTurn();
+            invalidateBotTurn();
+            game.usedWords.clear();
+            game.gameHistory = [];
+            game.currentLastChar = '';
+            
+            stopTimer();
+            resetTimerDisplay();
+            
+            els.chatText.innerHTML = '';
+            els.infoText.innerHTML = '';
+            els.wordEntry.value = '';
+            els.wordEntry.disabled = false;
+            
+            // 이음 수 복원
+            loadWords();
+        }
+
+        function addSystemMessage(message) {
+            const div = document.createElement('div');
+            div.className = 'chat-system';
+            div.textContent = `[시스템] ${message}`;
+            els.chatText.appendChild(div);
+            els.chatText.scrollTop = els.chatText.scrollHeight;
+        }
+
+        function addSystemMessageWithWordLinks(prefix, words) {
+            if (!words || words.length === 0) {
+                addSystemMessage(prefix.trim());
+                return;
+            }
+            
+            const div = document.createElement('div');
+            div.className = 'chat-system';
+            
+            const systemLabel = document.createElement('span');
+            systemLabel.textContent = '[시스템] ' + prefix;
+            div.appendChild(systemLabel);
+            
+            words.forEach((word, idx) => {
+                if (idx > 0) {
+                    div.appendChild(document.createTextNode(', '));
+                }
+                
+                const link = document.createElement('span');
+                link.className = 'word-link';
+                link.textContent = word;
+                link.onclick = () => showWordInfo(word);
+                div.appendChild(link);
+            });
+            
+            els.chatText.appendChild(div);
+            els.chatText.scrollTop = els.chatText.scrollHeight;
+        }
+
+        function showWarningMessage(message) {
+            addSystemMessage(`⚠️ ${message}`);
+            els.statusLabel.textContent = message;
+            els.statusLabel.style.color = '#c0392b';
+        }
+
+        function addWordMessage(speaker, word) {
+            const div = document.createElement('div');
+            
+            const label = document.createElement('span');
+            label.className = speaker === 'user' ? 'chat-user' : 'chat-bot';
+            label.textContent = speaker === 'user' ? '당신: ' : '봇: ';
+            div.appendChild(label);
+            
+            const link = document.createElement('span');
+            link.className = 'word-link';
+            link.textContent = word;
+            link.onclick = () => showWordInfo(word);
+            div.appendChild(link);
+            
+            els.chatText.appendChild(div);
+            els.chatText.scrollTop = els.chatText.scrollHeight;
+        }
+
+        function showWordInfo(word) {
+            els.infoText.innerHTML = '';
+            
+            if (game.wordsData[word]) {
+                const title = document.createElement('div');
+                title.style.fontSize = '18px';
+                title.style.fontWeight = 'bold';
+                title.style.marginBottom = '10px';
+                title.textContent = `📖 ${word}`;
+                els.infoText.appendChild(title);
+                
+                game.wordsData[word].forEach((entry, idx) => {
+                    const section = document.createElement('div');
+                    section.style.marginBottom = '15px';
+                    
+                    section.innerHTML = `
+                        <div style="font-weight: bold; margin-bottom: 5px;">[의미 ${idx + 1}]</div>
+                        <div>발음: ${entry['발음'] || '-'}</div>
+                        <div>구분: ${entry['고유어 여부'] || '-'}</div>
+                        <div>뜻: ${entry['뜻풀이'] || '-'}</div>
+                        ${entry['전문 분야'] ? `<div>분야: ${entry['전문 분야']}</div>` : ''}
+                        ${entry['용례'] ? `<div style="margin-top: 5px;">용례:<br>${entry['용례']}</div>` : ''}
+                    `;
+                    
+                    els.infoText.appendChild(section);
+                    
+                    if (idx < game.wordsData[word].length - 1) {
+                        const hr = document.createElement('hr');
+                        els.infoText.appendChild(hr);
+                    }
+                });
+            } else {
+                els.infoText.textContent = `'${word}' 단어 정보를 찾을 수 없습니다.`;
+            }
+        }
+
+        function applyDueumDecrease(char) {
+            if (!char) return;
+            
+            const words = game.wordsByLastCharVariants[char];
+            if (!words) return;
+            
+            words.forEach(word => {
+                const entries = game.wordsData[word];
+                if (entries) {
+                    entries.forEach(entry => {
+                        if ('이음 수' in entry) {
+                            entry['이음 수'] = Math.max(0, entry['이음 수'] - 1);
+                        }
+                    });
+                }
+            });
+        }
+
+        function countAvailableFollowups(lastChar, excludeWord = null, usedWords = null) {
+            if (!lastChar) return 0;
+            
+            const allowedChars = getDueumVariants(lastChar);
+            const used = usedWords || game.usedWords;
+            const availableWords = new Set();
+            
+            allowedChars.forEach(char => {
+                const words = game.wordsByFirstChar[char] || [];
+                words.forEach(word => {
+                    if (word === excludeWord || used.has(word)) return;
+                    availableWords.add(word);
+                });
+            });
+            
+            return availableWords.size;
+        }
+
+        function getPossibleUserWords(limit = 10) {
+            if (!game.currentLastChar) return [];
+            
+            const allowedChars = getDueumVariants(game.currentLastChar);
+            const candidates = [];
+            const seen = new Set();
+            
+            allowedChars.forEach(char => {
+                const words = game.wordsByFirstChar[char] || [];
+                words.forEach(word => {
+                    if (game.usedWords.has(word) || seen.has(word)) return;
+                    seen.add(word);
+                    
+                    const entries = game.wordsData[word];
+                    const maxEuem = Math.max(...entries.map(e => e['이음 수'] || 0));
+                    
+                    if (game.gameHistory.length < 4 && maxEuem === 0) return;
+                    
+                    candidates.push({ word, maxEuem });
+                });
+            });
+            
+            candidates.sort((a, b) => b.maxEuem - a.maxEuem || a.word.localeCompare(b.word));
+            return candidates.slice(0, limit).map(c => c.word);
+        }
+
+        function showPossibleUserWords(limit = 10) {
+            const suggestions = getPossibleUserWords(limit);
+            
+            if (!game.currentLastChar) return;
+            
+            if (suggestions.length === 0) {
+                addSystemMessage('사용자가 말할 수 있는 단어가 없었습니다.');
+                return;
+            }
+            
+            const prefix = `사용자가 말할 수 있었던 단어 예시 (최대 ${limit}개 표시됨): `;
+            addSystemMessageWithWordLinks(prefix, suggestions);
+        }
+
+        function submitWord() {
+            if (!game.gameActive) return;
+            
+            const word = els.wordEntry.value.trim();
+            els.wordEntry.value = '';
+            
+            if (!word) return;
+            
+            // 단어 검증
+            if (!isHangulSyllable(word[0]) || !isHangulSyllable(word[word.length - 1])) {
+                showWarningMessage(`${word}(은)는 잘못된 단어입니다: 한글로 시작하고 끝나야 합니다.`);
+                return;
+            }
+            
+            if (word.length < 2) {
+                showWarningMessage(`${word}(은)는 잘못된 단어입니다: 최소 2글자 이상이어야 합니다.`);
+                return;
+            }
+            
+            if (!game.wordsData[word]) {
+                showWarningMessage(`${word}(은)는 잘못된 단어입니다: 사전에 없는 단어이거나 명사가 아닙니다.`);
+                return;
+            }
+            
+            const maxEuem = Math.max(...game.wordsData[word].map(e => e['이음 수'] || 0));
+            if (game.gameHistory.length < 4 && maxEuem === 0) {
+                showWarningMessage(`${word}(은)는 잘못된 단어입니다: 게임 시작 후 4턴까지는 이음 수가 0인 단어를 사용할 수 없습니다.`);
+                return;
+            }
+            
+            if (game.usedWords.has(word)) {
+                showWarningMessage(`${word}(은)는 잘못된 단어입니다: 이미 사용된 단어입니다.`);
+                return;
+            }
+            
+            const firstChar = word[0];
+            
+            // 첫 단어가 아니면 끝말잇기 규칙 검사
+            if (game.currentLastChar) {
+                const allowedChars = getDueumVariants(game.currentLastChar);
+                if (!allowedChars.has(firstChar)) {
+                    showWarningMessage(`${word}(은)는 잘못된 단어입니다: '${game.currentLastChar}'(으)로 시작하는 단어를 입력하세요.`);
+                    return;
+                }
+            }
+            
+            // 단어 추가
+            game.usedWords.add(word);
+            game.gameHistory.push(['user', word]);
+            addWordMessage('user', word);
+            
+            stopTimer();
+            
+            // 마지막 글자 업데이트
+            const lastChar = word[word.length - 1];
+            game.currentLastChar = lastChar;
+            
+            // 이음 수 감소
+            applyDueumDecrease(firstChar);
+            
+            // 봇 차례
+            els.statusLabel.textContent = '봇이 생각 중...';
+            els.statusLabel.style.color = '#e67e22';
+            els.wordEntry.disabled = true;
+            
+            cancelPendingBotTurn();
+            const turnId = invalidateBotTurn();
+            game.pendingBotTimeoutId = setTimeout(() => botTurn(turnId), 1000);
+        }
+
+        function cancelPendingBotTurn() {
+            if (game.pendingBotTimeoutId !== null) {
+                clearTimeout(game.pendingBotTimeoutId);
+                game.pendingBotTimeoutId = null;
+            }
+        }
+
+        function invalidateBotTurn() {
+            game.botTurnSequence++;
+            return game.botTurnSequence;
+        }
+
+        function botTurn(turnId) {
+            game.pendingBotTimeoutId = null;
+            if (turnId !== game.botTurnSequence || !game.gameActive) return;
+            
+            setTimeout(() => {
+                const result = computeBotDecision();
+                applyBotResult(turnId, result);
+            }, 0);
+        }
+
+        function computeBotDecision() {
+            const possibleWords = [];
+            const usedWordsSnapshot = new Set(game.usedWords);
+            const gameHistorySnapshot = [...game.gameHistory];
+            const lastRequiredChar = game.currentLastChar;
+            
+            if (gameHistorySnapshot.length === 0) {
+                return { type: 'no_word' };
+            }
+            
+            let allowedChars = null;
+            if (lastRequiredChar) {
+                allowedChars = getDueumVariants(lastRequiredChar);
+            }
+            
+            for (const word in game.wordsData) {
+                if (usedWordsSnapshot.has(word)) continue;
+                
+                const firstChar = word[0];
+                if (allowedChars !== null && !allowedChars.has(firstChar)) continue;
+                
+                const entries = game.wordsData[word];
+                const maxEuem = Math.max(...entries.map(e => e['이음 수'] || 0));
+                
+                if (gameHistorySnapshot.length < 4 && maxEuem === 0) continue;
+                
+                const minThreshold = Math.max(0, 3200 - (getEffectiveDifficulty() * 400));
+                if (maxEuem < minThreshold) continue;
+                
+                possibleWords.push({ word, maxEuem });
+            }
+            
+            if (possibleWords.length === 0) {
+                return { type: 'no_word' };
+            }
+            
+            // 안전한 단어만 선택
+            const safeWords = possibleWords.filter(({ word }) => {
+                const lastChar = word[word.length - 1];
+                const remaining = countAvailableFollowups(lastChar, word, usedWordsSnapshot);
+                return remaining > 0;
+            });
+            
+            if (safeWords.length > 0) {
+                possibleWords.length = 0;
+                possibleWords.push(...safeWords);
+            }
+            
+            // 난이도에 따른 실패 확률
+            const lastUserWord = gameHistorySnapshot[gameHistorySnapshot.length - 1][1];
+            const lastEuem = Math.max(...game.wordsData[lastUserWord].map(e => e['이음 수'] || 0));
+            
+            let baseProb = 1.0;
+            if (lastEuem < 1000) {
+                const difficultyFactor = getEffectiveDifficulty() / 10.0;
+                const euemFactor = lastEuem / 1000.0;
+                
+                const baseSkill = 0.35 + (0.65 * difficultyFactor);
+                const penaltyScale = Math.pow(1 - difficultyFactor, 3);
+                const lowEuemPenalty = (1 - euemFactor) * 0.4 * penaltyScale;
+                const euemBonus = euemFactor * 0.25 * (1 - penaltyScale);
+                
+                baseProb = baseSkill - lowEuemPenalty + euemBonus;
+                baseProb = Math.max(0.1, Math.min(1.0, baseProb));
+            }
+            
+            let shouldFail = false;
+            if (getEffectiveDifficulty() < 10) {
+                shouldFail = Math.random() > baseProb;
+            }
+            
+            if (shouldFail) {
+                return { type: 'fail', baseProb };
+            }
+            
+            // 단어 선택
+            const minEuem = Math.min(...possibleWords.map(p => p.maxEuem));
+            const maxEuemVal = Math.max(...possibleWords.map(p => p.maxEuem));
+            const difficultyFactor = getEffectiveDifficulty() / 10.0;
+            
+            let selectedWord;
+            if (getEffectiveDifficulty() >= 10) {
+                const minCandidates = possibleWords.filter(p => p.maxEuem === minEuem);
+                selectedWord = minCandidates[Math.floor(Math.random() * minCandidates.length)].word;
+            } else {
+                if (maxEuemVal === minEuem) {
+                    selectedWord = possibleWords[Math.floor(Math.random() * possibleWords.length)].word;
+                } else {
+                    const weights = possibleWords.map(({ maxEuem }) => {
+                        const normalized = (maxEuem - minEuem) / (maxEuemVal - minEuem);
+                        const highPref = (1.0 - difficultyFactor) * normalized;
+                        const lowPref = difficultyFactor * (1.0 - normalized);
+                        return highPref + lowPref + 0.05;
+                    });
+                    
+                    const totalWeight = weights.reduce((a, b) => a + b, 0);
+                    let random = Math.random() * totalWeight;
+                    
+                    for (let i = 0; i < possibleWords.length; i++) {
+                        random -= weights[i];
+                        if (random <= 0) {
+                            selectedWord = possibleWords[i].word;
+                            break;
+                        }
+                    }
+                    
+                    if (!selectedWord) {
+                        selectedWord = possibleWords[possibleWords.length - 1].word;
+                    }
+                }
+            }
+            
+            return {
+                type: 'word',
+                word: selectedWord,
+                firstChar: selectedWord[0],
+                lastChar: selectedWord[selectedWord.length - 1]
+            };
+        }
+
+        function applyBotResult(turnId, result) {
+            if (turnId !== game.botTurnSequence || !game.gameActive) return;
+            
+            const outcome = result.type;
+            
+            if (outcome === 'no_word') {
+                addSystemMessage('봇이 말할 수 있는 단어가 없습니다. 당신의 승리!');
+                els.statusLabel.textContent = '게임 종료 - 당신의 승리! 🎉';
+                els.statusLabel.style.color = '#27ae60';
+                els.wordEntry.disabled = true;
+                game.gameActive = false;
+                stopTimer();
+                resetTimerDisplay();
+                updateStats(1, 0);
+                return;
+            }
+            
+            if (outcome === 'fail') {
+                addSystemMessage('봇이 단어를 찾지 못했습니다. 당신의 승리!');
+                els.statusLabel.textContent = '게임 종료 - 당신의 승리! 🎉';
+                els.statusLabel.style.color = '#27ae60';
+                els.wordEntry.disabled = true;
+                game.gameActive = false;
+                stopTimer();
+                resetTimerDisplay();
+                updateStats(1, 0);
+                return;
+            }
+            
+            if (outcome !== 'word') return;
+            
+            const selectedWord = result.word;
+            if (!selectedWord) return;
+            
+            const selectedFirstChar = result.firstChar;
+            const lastChar = result.lastChar;
+            
+            game.usedWords.add(selectedWord);
+            game.gameHistory.push(['bot', selectedWord]);
+            addWordMessage('bot', selectedWord);
+            
+            game.currentLastChar = lastChar;
+            applyDueumDecrease(selectedFirstChar);
+            
+            els.statusLabel.textContent = `'${lastChar}'(으)로 시작하는 단어를 입력하세요`;
+            els.statusLabel.style.color = '#2c5aa0';
+            els.wordEntry.disabled = false;
+            els.wordEntry.focus();
+            
+            if (game.gameActive) {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            stopTimer();
+            updateTurnTimeLimit();
+            game.timerSecondsRemaining = game.turnTimeLimit;
+            updateTimerDisplay();
+            game.timerIntervalId = setInterval(updateTimer, 1000);
+        }
+
+        function stopTimer() {
+            if (game.timerIntervalId !== null) {
+                clearInterval(game.timerIntervalId);
+                game.timerIntervalId = null;
+            }
+        }
+
+        function updateTimer() {
+            if (game.timerSecondsRemaining <= 0) return;
+            
+            game.timerSecondsRemaining--;
+            updateTimerDisplay();
+            
+            if (game.timerSecondsRemaining <= 0) {
+                handleTimeOut();
+            }
+        }
+
+        function updateTimerDisplay() {
+            if (game.timerSecondsRemaining > 0) {
+                els.timerLabel.textContent = `남은 시간: ${String(game.timerSecondsRemaining).padStart(2, '0')}초`;
+                const percentage = (game.timerSecondsRemaining / game.turnTimeLimit) * 100;
+                els.timerBar.style.width = `${percentage}%`;
+            } else {
+                els.timerLabel.textContent = '남은 시간: 00초';
+                els.timerBar.style.width = '0%';
+            }
+        }
+
+        function resetTimerDisplay() {
+            game.timerSecondsRemaining = 0;
+            els.timerLabel.textContent = '남은 시간: --';
+            els.timerBar.style.width = '0%';
+        }
+
+        function handleTimeOut() {
+            if (!game.gameActive) return;
+            
+            game.gameActive = false;
+            cancelPendingBotTurn();
+            invalidateBotTurn();
+            stopTimer();
+            els.wordEntry.disabled = true;
+            els.statusLabel.textContent = '게임 종료 - 시간 초과! ⏰';
+            els.statusLabel.style.color = '#c0392b';
+            addSystemMessage('시간 초과! 봇의 승리입니다.');
+            showPossibleUserWords();
+            updateStats(0, 1);
+        }
+
+        function forfeitGame() {
+            if (!game.gameActive) return;
+            
+            game.gameActive = false;
+            cancelPendingBotTurn();
+            invalidateBotTurn();
+            stopTimer();
+            els.wordEntry.disabled = true;
+            els.statusLabel.textContent = '게임 종료 - 당신의 패배';
+            els.statusLabel.style.color = '#c0392b';
+            addSystemMessage('당신이 기권했습니다. 봇의 승리!');
+            showPossibleUserWords();
+            resetTimerDisplay();
+            updateStats(0, 1);
+        }
+
+        // 초기화 실행
+        init();
+    </script>
+</body>
+</html>
