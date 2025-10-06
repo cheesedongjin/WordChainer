@@ -54,7 +54,8 @@ WordChainer/
 1. A virtual environment is recommended.
    ```bash
    python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   source .venv/bin/activate  # macOS/Linux
+   .venv\Scripts\Activate.ps1  # Windows PowerShell
    pip install -r dev/requirements-dev.txt
    ```
 2. To modify the Tkinter UI, run `main.py` directly to verify your changes immediately.
