@@ -44,7 +44,8 @@ WordChainer/
 ├── main.py             # Tkinter-based desktop app
 ├── words.json          # Word database for the game
 ├── dev/
-│   └── extract_words_to_json.py  # Script that generates words.json from raw data
+│   ├── extract_words_to_json.py  # Script that generates words.json from raw data
+│   └── requirements-dev.txt      # Development dependency list
 ├── requirements.txt    # Required Python packages
 └── README.md
 ```
@@ -54,7 +55,7 @@ WordChainer/
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
+   pip install -r dev/requirements-dev.txt
    ```
 2. To modify the Tkinter UI, run `main.py` directly to verify your changes immediately.
 3. To work on the web client, open `index.html` through a local server.
