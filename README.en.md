@@ -1,5 +1,7 @@
 # WordChainer
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ## Introduction
 WordChainer is a project that lets you enjoy the Korean word-chain game with an AI bot. It provides both a Tkinter-based desktop app and a web version distributed through GitHub Pages, so you can start playing easily from anywhere. [Play on the web](https://cheesedongjin.github.io/WordChainer/)
 
