@@ -45,7 +45,8 @@ WordChainer/
 ├── main.py             # Tkinter 기반 데스크톱 앱
 ├── words.json          # 끝말잇기용 단어 데이터베이스
 ├── dev/
-│   └── extract_words_to_json.py  # 원천 데이터에서 words.json을 생성하는 스크립트
+│   ├── extract_words_to_json.py  # 원천 데이터에서 words.json을 생성하는 스크립트
+│   └── requirements-dev.txt      # 개발 환경용 의존성 목록
 ├── requirements.txt    # 실행에 필요한 Python 패키지 목록
 └── README.md
 ```
@@ -54,8 +55,9 @@ WordChainer/
 1. 가상 환경을 권장합니다.
    ```bash
    python -m venv .venv
-   source .venv/bin/activate  # Windows는 .venv\Scripts\activate
-   pip install -r requirements.txt
+   source .venv/bin/activate  # macOS/Linux
+   .venv\Scripts\Activate.ps1  # Windows PowerShell
+   pip install -r dev/requirements-dev.txt
    ```
 2. Tkinter UI를 수정할 경우 `main.py`를 직접 실행하여 변경 사항을 즉시 확인할 수 있습니다.
 3. 웹 클라이언트를 개발하려면 `index.html`을 로컬 서버에서 열어야 합니다.
