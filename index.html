@@ -221,10 +221,22 @@
             color: white;
         }
 
+        #hint-btn {
+            background: #f1c40f;
+            color: #2c3e50;
+        }
+
+        #hint-warning {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
         #button-frame {
             display: flex;
             gap: 10px;
             padding: 0 20px 20px;
+            flex-wrap: wrap;
+            align-items: center;
         }
 
         #stats-panel {
@@ -343,6 +355,8 @@
 
     <div id="button-frame">
         <button id="start-btn">게임 시작</button>
+        <button id="hint-btn">힌트</button>
+        <span id="hint-warning">힌트 사용 시 승리 기록이 올라가지 않습니다.</span>
         <button id="forfeit-btn">포기</button>
     </div>
 
@@ -398,6 +412,19 @@
             return null;
         }
 
+        function getInitialConsonants(word) {
+            let result = '';
+            for (const ch of word) {
+                const decomp = decompose(ch);
+                if (!decomp) {
+                    result += ch;
+                } else {
+                    result += CHOS[decomp.cho];
+                }
+            }
+            return result;
+        }
+
         function getDueumVariants(syllable) {
             if (!syllable) return new Set();
             const variants = new Set([syllable]);
@@ -426,7 +453,8 @@
             winCount: 0,
             lossCount: 0,
             statsByDifficulty: {},
-            activeGameDifficulty: null
+            activeGameDifficulty: null,
+            hintUsedInGame: false
         };
 
         // 난이도별 전적 초기화
@@ -445,9 +473,11 @@
             wordEntry: document.getElementById('word-entry'),
             submitBtn: document.getElementById('submit-btn'),
             startBtn: document.getElementById('start-btn'),
+            hintBtn: document.getElementById('hint-btn'),
             forfeitBtn: document.getElementById('forfeit-btn'),
             infoText: document.getElementById('info-text'),
-            statsRows: document.getElementById('stats-rows')
+            statsRows: document.getElementById('stats-rows'),
+            hintWarning: document.getElementById('hint-warning')
         };
 
         // 초기화
@@ -456,7 +486,8 @@
             createStatsRows();
             refreshDifficultyStatsPanel();
             loadWords();
-            
+            updateHintNotice();
+
             els.difficultySlider.addEventListener('input', onDifficultyChange);
             els.submitBtn.addEventListener('click', submitWord);
             els.wordEntry.addEventListener('keypress', (e) => {
@@ -464,6 +495,9 @@
             });
             els.startBtn.addEventListener('click', startGame);
             els.forfeitBtn.addEventListener('click', forfeitGame);
+            if (els.hintBtn) {
+                els.hintBtn.addEventListener('click', () => useHint());
+            }
         }
 
         function createStatsRows() {
@@ -541,8 +575,15 @@
         }
 
         function updateStats(wins = 0, losses = 0, difficulty = null) {
-            if (wins === 0 && losses === 0) return;
-            
+            if (wins > 0 && game.hintUsedInGame) {
+                wins = 0;
+            }
+
+            if (wins === 0 && losses === 0) {
+                game.activeGameDifficulty = null;
+                return;
+            }
+
             game.winCount += wins;
             game.lossCount += losses;
             
@@ -555,6 +596,35 @@
             refreshDifficultyStatsPanel();
             saveStats();
             game.activeGameDifficulty = null;
+        }
+
+        function updateHintNotice() {
+            if (!els.hintWarning) return;
+
+            if (game.hintUsedInGame) {
+                els.hintWarning.textContent = '힌트 사용됨: 이번 게임에서는 승리 기록이 올라가지 않습니다.';
+                els.hintWarning.style.color = '#c0392b';
+            } else {
+                els.hintWarning.textContent = '힌트 사용 시 승리 기록이 올라가지 않습니다.';
+                els.hintWarning.style.color = '#7f8c8d';
+            }
+        }
+
+        function useHint(limit = 10) {
+            if (!game.gameActive) {
+                addSystemMessage('게임을 시작한 후에 힌트를 사용할 수 있습니다.');
+                return;
+            }
+
+            const firstUse = !game.hintUsedInGame;
+            game.hintUsedInGame = true;
+            updateHintNotice();
+
+            if (firstUse) {
+                addSystemMessage('힌트를 사용하면 이번 게임의 승리 기록은 올라가지 않습니다.');
+            }
+
+            showPossibleUserWords(limit, { initialsOnly: true });
         }
 
         async function loadWords() {
@@ -627,7 +697,9 @@
             game.usedWords.clear();
             game.gameHistory = [];
             game.currentLastChar = '';
-            
+            game.hintUsedInGame = false;
+            updateHintNotice();
+
             stopTimer();
             resetTimerDisplay();
             
@@ -799,16 +871,28 @@
             return candidates.slice(0, limit).map(c => c.word);
         }
 
-        function showPossibleUserWords(limit = 10) {
+        function showPossibleUserWords(limit = 10, options = {}) {
+            const { initialsOnly = false } = options;
             const suggestions = getPossibleUserWords(limit);
-            
-            if (!game.currentLastChar) return;
-            
+
+            if (!game.currentLastChar) {
+                if (initialsOnly) {
+                    addSystemMessage('아직 힌트를 제공할 수 없습니다. 먼저 단어를 입력해 주세요.');
+                }
+                return;
+            }
+
             if (suggestions.length === 0) {
                 addSystemMessage('사용자가 말할 수 있는 단어가 없었습니다.');
                 return;
             }
-            
+
+            if (initialsOnly) {
+                const hints = suggestions.map(getInitialConsonants);
+                addSystemMessage(`가능한 단어 초성 힌트 (최대 ${limit}개 표시됨): ${hints.join(', ')}`);
+                return;
+            }
+
             const prefix = `사용자가 말할 수 있었던 단어 예시 (최대 ${limit}개 표시됨): `;
             addSystemMessageWithWordLinks(prefix, suggestions);
         }
