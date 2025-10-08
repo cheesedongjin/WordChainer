@@ -42,6 +42,20 @@ def compose(cho: int, jung: int, jong: int) -> str:
     return chr(HANGUL_BASE + cho * 588 + jung * 28 + jong)
 
 
+def get_initial_consonants(word: str) -> str:
+    initials: List[str] = []
+
+    for ch in word:
+        decomp = decompose(ch)
+        if decomp is None:
+            initials.append(ch)
+        else:
+            cho, _, _ = decomp
+            initials.append(CHOS[cho])
+
+    return ''.join(initials)
+
+
 def dueum_transform(syll: str) -> Optional[str]:
     """두음법칙에 따른 음절 변환."""
     decomp = decompose(syll)
@@ -86,6 +100,7 @@ class WordChainGame:
         self.pending_bot_after_id: Optional[str] = None
         self.bot_turn_sequence = 0
         self.game_active = False
+        self.hint_used_in_game = False
 
         self.stats_file = "game_stats.json"
         self.win_count = 0
@@ -290,20 +305,37 @@ class WordChainGame:
         # 하단 버튼
         button_frame = tk.Frame(self.root, bg="#f5f5f5")
         button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-        
-        start_btn = tk.Button(button_frame, text="게임 시작", 
-                             font=("맑은 고딕", 18, "bold"),
-                             bg="#27ae60", fg="white",
-                             relief=tk.FLAT, padx=30, pady=10,
-                             command=self.start_game)
+
+        start_btn = tk.Button(button_frame, text="게임 시작",
+                              font=("맑은 고딕", 18, "bold"),
+                              bg="#27ae60", fg="white",
+                              relief=tk.FLAT, padx=30, pady=10,
+                              command=self.start_game)
         start_btn.pack(side=tk.LEFT, padx=5)
-        
+
+        hint_btn = tk.Button(button_frame, text="힌트",
+                              font=("맑은 고딕", 18, "bold"),
+                              bg="#f1c40f", fg="#2c3e50",
+                              relief=tk.FLAT, padx=30, pady=10,
+                              command=self.use_hint)
+        hint_btn.pack(side=tk.LEFT, padx=5)
+
+        self.hint_notice_label = tk.Label(
+            button_frame,
+            text="힌트 사용 시 승리 기록이 올라가지 않습니다.",
+            font=("맑은 고딕", 14),
+            bg="#f5f5f5",
+            fg="#7f8c8d"
+        )
+        self.hint_notice_label.pack(side=tk.LEFT, padx=10)
+
         forfeit_btn = tk.Button(button_frame, text="포기",
                                 font=("맑은 고딕", 18, "bold"),
                                 bg="#c0392b", fg="white",
                                 relief=tk.FLAT, padx=30, pady=10,
                                 command=self.forfeit_game)
         forfeit_btn.pack(side=tk.LEFT, padx=5)
+        self.update_hint_status_label()
         
     def load_words(self):
         """words.json 파일 로드"""
@@ -400,7 +432,11 @@ class WordChainGame:
             value_label.config(bg=bg_color)
 
     def update_stats(self, wins: int = 0, losses: int = 0, difficulty: Optional[int] = None):
+        if wins > 0 and self.hint_used_in_game:
+            wins = 0
+
         if wins == 0 and losses == 0:
+            self.active_game_difficulty = None
             return
 
         self.win_count += wins
@@ -424,6 +460,33 @@ class WordChainGame:
         self.refresh_difficulty_stats_panel()
         self.save_stats()
         self.active_game_difficulty = None
+
+    def update_hint_status_label(self):
+        if not hasattr(self, 'hint_notice_label'):
+            return
+
+        if self.hint_used_in_game:
+            text = "힌트 사용됨: 이번 게임에서는 승리 기록이 올라가지 않습니다."
+            color = "#c0392b"
+        else:
+            text = "힌트 사용 시 승리 기록이 올라가지 않습니다."
+            color = "#7f8c8d"
+
+        self.hint_notice_label.config(text=text, fg=color)
+
+    def use_hint(self, limit: int = 10):
+        if not self.game_active:
+            self.add_system_message("게임을 시작한 후에 힌트를 사용할 수 있습니다.")
+            return
+
+        first_use = not self.hint_used_in_game
+        self.hint_used_in_game = True
+        self.update_hint_status_label()
+
+        if first_use:
+            self.add_system_message("힌트를 사용하면 이번 게임의 승리 기록은 올라가지 않습니다.")
+
+        self.show_possible_user_words(limit=limit, initials_only=True)
 
     def build_word_indexes(self):
         """단어 검색 속도를 높이기 위해 색인 생성"""
@@ -505,6 +568,8 @@ class WordChainGame:
         self.game_history.clear()
         self.current_last_char = ""
         self.word_tag_counter = 0
+        self.hint_used_in_game = False
+        self.update_hint_status_label()
 
         self.stop_timer()
         self.reset_timer_display()
@@ -686,15 +751,23 @@ class WordChainGame:
         candidates.sort(key=lambda item: (-item[1], item[0]))
         return [word for word, _ in candidates[:limit]]
 
-    def show_possible_user_words(self, limit: int = 10):
+    def show_possible_user_words(self, limit: int = 10, initials_only: bool = False):
         """사용자가 말할 수 있었던 단어 예시를 시스템 메시지로 출력"""
         suggestions = self.get_possible_user_words(limit)
 
         if not self.current_last_char:
+            if initials_only:
+                self.add_system_message("아직 힌트를 제공할 수 없습니다. 먼저 단어를 입력해 주세요.")
             return
 
         if not suggestions:
             self.add_system_message("사용자가 말할 수 있는 단어가 없었습니다.")
+            return
+
+        if initials_only:
+            hint_list = [get_initial_consonants(word) for word in suggestions]
+            prefix = f"가능한 단어 초성 힌트 (최대 {limit}개 표시됨): "
+            self.add_system_message(prefix + ", ".join(hint_list))
             return
 
         prefix = f"사용자가 말할 수 있었던 단어 예시 (최대 {limit}개 표시됨): "
